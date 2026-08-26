@@ -70,128 +70,16 @@ async function loadDashboard() {
         }
         
         li.onclick = () => {
-            document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
-            li.classList.add('active');
-            loadView(menu.view);
+            navigateTo(menu.view);
         };
-        if (index === 0) li.classList.add('active');
+        li.dataset.view = menu.view;
         sidebar.appendChild(li);
     });
 
-    loadView(menus[role][0].view);
+    navigateTo(menus[role][0].view);
 }
 
-async function loadView(viewName) {
-    const contentArea = document.getElementById('content-area');
-    contentArea.innerHTML = '<div class="spinner"></div>';
-
-    try {
-        console.log('Loading view:', viewName);
-        
-        switch(viewName) {
-            case 'studentDashboard':
-                await renderStudentDashboard();
-                break;
-            case 'markMyAttendance':
-                renderMarkMyAttendance();
-                break;
-            case 'myAttendance':
-                await renderMyAttendance();
-                break;
-            case 'myBills':
-                await renderMyBills();
-                break;
-            case 'myComplaints':
-                await renderMyComplaints();
-                break;
-            case 'wardenDashboard':
-                if (window.renderWardenDashboard) {
-                    await window.renderWardenDashboard();
-                } else {
-                    throw new Error('Warden dashboard not available');
-                }
-                break;
-            case 'markAttendance':
-                if (window.renderMarkAttendance) {
-                    await window.renderMarkAttendance();
-                } else {
-                    throw new Error('Mark attendance not available');
-                }
-                break;
-            case 'attendanceRecords':
-                if (window.renderAttendanceRecords) {
-                    await window.renderAttendanceRecords();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Attendance Records</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'messBills':
-                if (window.renderMessBills) {
-                    await window.renderMessBills();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Mess Bills</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'complaints':
-                if (window.renderComplaints) {
-                    await window.renderComplaints();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Complaints</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'allComplaints':
-                if (window.renderAllComplaints) {
-                    await window.renderAllComplaints();
-                } else if (window.renderComplaints) {
-                    await window.renderComplaints();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Complaints</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'manageBills':
-                if (window.renderManageBills) {
-                    await window.renderManageBills();
-                } else if (window.renderMessBills) {
-                    await window.renderMessBills();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Manage Bills</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'attendanceReport':
-                if (window.renderAttendanceReport) {
-                    await window.renderAttendanceReport();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Attendance Report</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            case 'adminDashboard':
-                await renderAdminDashboard();
-                break;
-            case 'pendingWardens':
-                await renderPendingWardens();
-                break;
-            case 'allUsers':
-                await renderAllUsers();
-                break;
-            case 'announcements':
-            case 'manageAnnouncements':
-                renderAnnouncements();
-                break;
-            case 'wardenRequest':
-                if (window.renderWardenRequest) {
-                    await window.renderWardenRequest();
-                } else {
-                    contentArea.innerHTML = '<div class="empty-state"><h3>Warden Request</h3><p>This feature is under development</p></div>';
-                }
-                break;
-            default:
-                contentArea.innerHTML = '<div class="empty-state"><h3>Coming Soon</h3><p>This feature is under development</p></div>';
-        }
-    } catch (error) {
-        console.error('Error loading view:', error);
-        contentArea.innerHTML = `<div class="alert alert-error">Error loading content: ${error.message}</div>`;
-    }
-}
+// loadView is now centralized in app.js
 
 // ==================== STUDENT VIEWS ====================
 

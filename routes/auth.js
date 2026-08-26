@@ -146,7 +146,7 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'No account found with this email or college ID.'
       });
     }
 
@@ -160,7 +160,8 @@ router.post('/login', async (req, res) => {
     const testAccounts = [
       'adminpriyanshu@hostel.com',
       'wardenpriyanshu@hostel.com',
-      'studentpriyanshu@hostel.com'
+      'studentpriyanshu@hostel.com',
+      'priyanshuguptaiit99@gmail.com'
     ];
 
     if (!user.emailVerified && !testAccounts.includes(user.email.toLowerCase())) {
@@ -193,7 +194,7 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Incorrect password. Please try again.'
       });
     }
 
@@ -334,10 +335,7 @@ router.post('/google/callback', async (req, res) => {
     const { code } = req.body;
 
     if (!code) {
-      return res.status(400).json({
-        success: false,
-        message: 'Authorization code is required'
-      });
+      return res.status(400).json({ success: false, message: 'Authorization code is required' });
     }
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -355,36 +353,28 @@ router.post('/google/callback', async (req, res) => {
     const tokenData = await tokenResponse.json();
 
     if (!tokenResponse.ok || !tokenData.access_token) {
-      return res.status(400).json({
-        success: false,
-        message: tokenData.error_description || 'Failed to get access token'
-      });
+      return res.status(400).json({ success: false, message: tokenData.error_description || 'Failed to get access token' });
     }
 
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`
-      }
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
 
     const googleUser = await userInfoResponse.json();
 
     if (!userInfoResponse.ok || !googleUser.email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to get Google account information'
-      });
+      return res.status(400).json({ success: false, message: 'Failed to get Google account information' });
     }
 
     const email = googleUser.email.toLowerCase();
     let user = await User.findOne({ email });
 
+    const testAccounts = ['adminpriyanshu@hostel.com', 'wardenpriyanshu@hostel.com', 'studentpriyanshu@hostel.com', 'priyanshuguptaiit99@gmail.com'];
+    const isTestAccount = testAccounts.includes(email);
+
     if (!user) {
       const emailPrefix = email.split('@')[0];
-      const collegeId = emailPrefix
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
-        .substring(0, 10) + Date.now().toString().slice(-4);
+      const collegeId = emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10) + Date.now().toString().slice(-4);
 
       user = await User.create({
         name: googleUser.name || emailPrefix,
@@ -396,13 +386,42 @@ router.post('/google/callback', async (req, res) => {
         avatar: googleUser.picture,
         isActive: true,
         approvalStatus: 'approved',
-        emailVerified: true
+        emailVerified: isTestAccount ? true : false
       });
+      
+      if (!isTestAccount) {
+         const sendEmail = require('../utils/email');
+         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+         user.emailVerificationOTP = otp;
+         user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
+         await user.save();
+         await sendEmail({
+            to: email,
+            subject: 'Email Verification OTP',
+            html: `<h1>Email Verification</h1><p>Your OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+         });
+         return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+      }
     } else {
       user.googleId = googleUser.id;
       user.avatar = googleUser.picture;
-      user.emailVerified = true;
       if (!user.approvalStatus) user.approvalStatus = 'approved';
+      if (isTestAccount) user.emailVerified = true;
+      
+      if (!user.emailVerified) {
+         const sendEmail = require('../utils/email');
+         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+         user.emailVerificationOTP = otp;
+         user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
+         await user.save();
+         await sendEmail({
+            to: email,
+            subject: 'Email Verification OTP',
+            html: `<h1>Email Verification</h1><p>Your fresh OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+         });
+         return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+      }
+      
       await user.save();
     }
 
@@ -413,7 +432,7 @@ router.post('/google/callback', async (req, res) => {
       message: 'Google login successful',
       token,
       user: {
-        _id: user._id,
+        id: user._id,
         name: user.name,
         email: user.email,
         collegeId: user.collegeId,
@@ -430,11 +449,7 @@ router.post('/google/callback', async (req, res) => {
     });
   } catch (error) {
     console.error('Google OAuth Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Google authentication failed',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Google authentication failed', error: error.message });
   }
 });
 
@@ -597,10 +612,24 @@ router.post('/verify-email-otp', async (req, res) => {
     user.emailVerificationOTPExpires = undefined;
     await user.save();
 
+    
+    const token = generateToken(user._id);
     res.json({
       success: true,
-      message: 'Email verified successfully! You can now login.'
+      message: 'Email verified successfully!',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        collegeId: user.collegeId,
+        role: user.role,
+        approvalStatus: user.approvalStatus,
+        emailVerified: user.emailVerified,
+        avatar: user.avatar
+      }
     });
+
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).json({

@@ -1,310 +1,114 @@
-/**
- * Hostel Management System - Main Application
- * 
- * @author Priyanshu
- * @copyright 2026 Priyanshu. All Rights Reserved.
- */
+const API_URL = '/api';
+let authToken = localStorage.getItem('token');
+let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
-// Automatically detect API URL based on environment
-// For local development, use the port from window.location or default to 3000
-const getApiUrl = () => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // Local development - use same port as frontend
-        const port = window.location.port || '3000';
-        return `http://${window.location.hostname}:${port}/api`;
-    } else {
-        // Production (Render) - use same origin
-        return `${window.location.origin}/api`;
+// --- Navigation Controller ---
+let currentNavId = 0;
+let activeAbortController = null;
+const viewHistory = [];
+
+window.navigateTo = async function(viewName, isBack = false) {
+    const navId = ++currentNavId;
+    
+    if (activeAbortController) {
+        activeAbortController.abort();
+    }
+    activeAbortController = new AbortController();
+
+    if (!isBack) {
+        if (viewHistory.length === 0 || viewHistory[viewHistory.length - 1] !== viewName) {
+            viewHistory.push(viewName);
+        }
+    }
+    
+    setActiveSidebar(viewName);
+    
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) {
+        contentArea.innerHTML = '<div class="spinner"></div>';
+    }
+    
+    try {
+        console.log(`[Nav ${navId}] Loading view:`, viewName);
+        
+        switch(viewName) {
+            case 'studentDashboard': if(window.renderStudentDashboard) await window.renderStudentDashboard(navId); break;
+            case 'markMyAttendance': if(window.renderMarkMyAttendance) window.renderMarkMyAttendance(navId); break;
+            case 'myAttendance': if(window.renderMyAttendance) await window.renderMyAttendance(navId); break;
+            case 'myBills': if(window.renderMyBills) await window.renderMyBills(navId); break;
+            case 'myComplaints': if(window.renderMyComplaints) await window.renderMyComplaints(navId); break;
+            case 'wardenRequest': if(window.renderWardenRequest) window.renderWardenRequest(navId); break;
+            
+            case 'wardenDashboard': if (window.renderWardenDashboard) await window.renderWardenDashboard(navId); break;
+            case 'markAttendance': if (window.renderMarkAttendance) await window.renderMarkAttendance(navId); break;
+            case 'attendanceRecords': if (window.renderAttendanceRecords) await window.renderAttendanceRecords(navId); break;
+            case 'messBills':
+            case 'manageBills': if (window.renderManageBills) await window.renderManageBills(navId); else if (window.renderMessBills) await window.renderMessBills(navId); break;
+            case 'complaints':
+            case 'allComplaints': if (window.renderAllComplaints) await window.renderAllComplaints(navId); else if (window.renderComplaints) await window.renderComplaints(navId); break;
+            case 'manageAnnouncements': if (window.renderManageAnnouncements) await window.renderManageAnnouncements(navId); break;
+            case 'announcements': if (window.renderStudentAnnouncements) await window.renderStudentAnnouncements(navId); else if (window.renderManageAnnouncements) await window.renderManageAnnouncements(navId); break;
+            case 'attendanceReport': if (window.renderAttendanceReport) await window.renderAttendanceReport(navId); break;
+            
+            case 'adminDashboard': if (window.renderAdminDashboard) await window.renderAdminDashboard(navId); break;
+            case 'pendingWardens': if (window.renderPendingWardens) await window.renderPendingWardens(navId); break;
+            case 'allUsers': if (window.renderAllUsers) await window.renderAllUsers(navId); break;
+            
+            default:
+                if (navId === currentNavId && contentArea) {
+                    contentArea.innerHTML = `<div class="empty-state"><h3>${viewName}</h3><p>This view is not implemented yet.</p></div>`;
+                }
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.log(`[Nav ${navId}] Aborted`);
+        } else {
+            console.error(`[Nav ${navId}] Error:`, error);
+            if (navId === currentNavId && contentArea) {
+                contentArea.innerHTML = `<div class="alert alert-error">Failed to load view: ${error.message}</div>`;
+            }
+        }
     }
 };
 
-const API_URL = getApiUrl();
-
-let currentUser = null;
-let authToken = null;
-
-// Expose to window for cross-file access
-window.currentUser = currentUser;
-window.authToken = authToken;
-
-console.log('App.js loading...'); // Debug log
-console.log('API_URL:', API_URL); // Debug: Show which API URL is being used
-console.log('Environment:', window.location.hostname === 'localhost' ? 'LOCAL' : 'PRODUCTION'); // Debug
-
-// Check if user is logged in
-function checkAuth() {
-    authToken = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (authToken && user) {
-        currentUser = JSON.parse(user);
-        window.currentUser = currentUser;
-        window.authToken = authToken;
-        
-        // Check approval status
-        if (currentUser.approvalStatus === 'pending' || currentUser.approvalStatus === 'rejected') {
-            showApprovalPortal(currentUser);
-        } else {
-            showDashboard();
-        }
+window.goBack = function() {
+    if (viewHistory.length > 1) {
+        viewHistory.pop(); // remove current
+        const prevView = viewHistory[viewHistory.length - 1];
+        navigateTo(prevView, true);
     } else {
-        showAuth();
-    }
-}
-
-// Helper function to update auth state from other files
-function updateAuthState(token, user) {
-    authToken = token;
-    currentUser = user;
-    window.authToken = token;
-    window.currentUser = user;
-    console.log('Auth state updated:', { token: !!token, user: user?.name }); // Debug log
-}
-
-function showAuth() {
-    console.log('showAuth called - showing login page'); // Debug log
-    
-    // Clear any existing user data
-    authToken = null;
-    currentUser = null;
-    window.authToken = null;
-    window.currentUser = null;
-    
-    // Show auth section, hide dashboard
-    document.getElementById('auth-section').style.display = 'block';
-    document.getElementById('dashboard-section').style.display = 'none';
-    
-    // Show login form by default
-    if (window.showLogin) {
-        window.showLogin();
-    }
-    
-    console.log('Auth section displayed'); // Debug log
-}
-
-function showApprovalPortal(user) {
-    console.log('showApprovalPortal called for user:', user); // Debug log
-    
-    // Hide auth and dashboard sections
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('dashboard-section').style.display = 'none';
-    
-    // Create approval portal
-    let portalHtml = '';
-    
-    if (user.approvalStatus === 'pending') {
-        portalHtml = `
-            <div id="approval-portal" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                <div style="max-width: 600px; width: 100%; background: white; border-radius: 24px; padding: 48px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: fadeIn 0.5s ease-out;">
-                    <div style="font-size: 80px; margin-bottom: 24px; animation: bounce 2s infinite;">⏳</div>
-                    <h1 style="font-size: 32px; font-weight: 800; color: #1e293b; margin-bottom: 16px;">Access Pending</h1>
-                    <p style="font-size: 18px; color: #64748b; margin-bottom: 32px;">Your account is waiting for approval</p>
-                    
-                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 12px; margin-bottom: 32px; text-align: left;">
-                        <h3 style="font-size: 16px; font-weight: 700; color: #92400e; margin-bottom: 12px;">⚠️ Approval Required</h3>
-                        <p style="font-size: 14px; color: #78350f; line-height: 1.6;">
-                            ${user.role === 'warden' 
-                                ? 'Your warden access request is pending admin approval. An administrator will review your request shortly.' 
-                                : 'Your student account is pending warden approval. A warden will review your registration shortly.'}
-                        </p>
-                    </div>
-                    
-                    <div style="background: #f1f5f9; padding: 24px; border-radius: 12px; margin-bottom: 32px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: left;">
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Name</div>
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b;">${user.name}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Role</div>
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b; text-transform: capitalize;">${user.role}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Email</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${user.email}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Status</div>
-                                <div style="display: inline-block; padding: 4px 12px; background: #fef3c7; color: #92400e; border-radius: 20px; font-size: 12px; font-weight: 700;">PENDING</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 32px;">
-                        <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">What happens next?</h4>
-                        <div style="text-align: left; padding-left: 20px;">
-                            <p style="font-size: 14px; color: #64748b; margin-bottom: 8px;">✓ ${user.role === 'warden' ? 'Admin' : 'Warden'} will review your request</p>
-                            <p style="font-size: 14px; color: #64748b; margin-bottom: 8px;">✓ You'll receive approval notification</p>
-                            <p style="font-size: 14px; color: #64748b; margin-bottom: 8px;">✓ Access will be granted automatically</p>
-                            <p style="font-size: 14px; color: #64748b;">✓ You can then login and use the system</p>
-                        </div>
-                    </div>
-                    
-                    <button onclick="handleLogout()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.2s;">
-                        Back to Login
-                    </button>
-                </div>
-            </div>
-        `;
-    } else if (user.approvalStatus === 'rejected') {
-        portalHtml = `
-            <div id="approval-portal" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                <div style="max-width: 600px; width: 100%; background: white; border-radius: 24px; padding: 48px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: fadeIn 0.5s ease-out;">
-                    <div style="font-size: 80px; margin-bottom: 24px;">❌</div>
-                    <h1 style="font-size: 32px; font-weight: 800; color: #dc2626; margin-bottom: 16px;">Access Denied</h1>
-                    <p style="font-size: 18px; color: #64748b; margin-bottom: 32px;">Your account request was not approved</p>
-                    
-                    <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 12px; margin-bottom: 32px; text-align: left;">
-                        <h3 style="font-size: 16px; font-weight: 700; color: #991b1b; margin-bottom: 12px;">Rejection Reason</h3>
-                        <p style="font-size: 14px; color: #7f1d1d; line-height: 1.6;">
-                            ${user.rejectionReason || 'Your request was reviewed and not approved. Please contact the administrator for more information.'}
-                        </p>
-                    </div>
-                    
-                    <div style="background: #f1f5f9; padding: 24px; border-radius: 12px; margin-bottom: 32px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: left;">
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Name</div>
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b;">${user.name}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Role</div>
-                                <div style="font-size: 16px; font-weight: 700; color: #1e293b; text-transform: capitalize;">${user.role}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Email</div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${user.email}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Status</div>
-                                <div style="display: inline-block; padding: 4px 12px; background: #fee2e2; color: #991b1b; border-radius: 20px; font-size: 12px; font-weight: 700;">REJECTED</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 32px; text-align: left;">
-                        <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">What can you do?</h4>
-                        <p style="font-size: 14px; color: #64748b; margin-bottom: 8px;">• Contact the administrator for clarification</p>
-                        <p style="font-size: 14px; color: #64748b; margin-bottom: 8px;">• Provide additional information if requested</p>
-                        <p style="font-size: 14px; color: #64748b;">• Reapply with correct information</p>
-                    </div>
-                    
-                    <button onclick="handleLogout()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.2s;">
-                        Back to Login
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Remove existing portal if any
-    const existingPortal = document.getElementById('approval-portal');
-    if (existingPortal) {
-        existingPortal.remove();
-    }
-    
-    // Add portal to body
-    document.body.insertAdjacentHTML('beforeend', portalHtml);
-}
-
-function showDashboard() {
-    console.log('showDashboard called, currentUser:', currentUser); // Debug log
-    
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('dashboard-section').style.display = 'block';
-    
-    if (currentUser) {
-        document.getElementById('user-name').textContent = currentUser.name;
-        document.getElementById('user-role').textContent = currentUser.role.replace('_', ' ');
-        
-        // Show welcome animation
-        if (typeof window.showWelcomeAnimation === 'function') {
-            window.showWelcomeAnimation(currentUser.name);
+        if (currentUser) {
+            navigateTo(currentUser.role + 'Dashboard', true);
         }
-        
-        // Add scroll to top button
-        if (typeof window.addScrollToTop === 'function') {
-            setTimeout(() => window.addScrollToTop(), 2500);
+    }
+};
+
+window.setActiveSidebar = function(viewName) {
+    const items = document.querySelectorAll('.sidebar li');
+    items.forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.view === viewName) {
+            item.classList.add('active');
         }
-        
-        // Load dashboard immediately
-        if (typeof window.loadDashboard === 'function') {
-            console.log('Calling loadDashboard...'); // Debug log
-            window.loadDashboard();
-        } else {
-            console.error('loadDashboard function not found!'); // Debug log
-            // Fallback: show error message
-            document.getElementById('content-area').innerHTML = '<div class="alert alert-error">Dashboard failed to load. Please refresh the page.</div>';
-        }
-    } else {
-        console.error('currentUser is null!'); // Debug log
-    }
-}
+    });
+};
 
-function showLogin() {
-    const authSection = document.getElementById('auth-section');
-    
-    // Check if we need to reload the original forms
-    const loginForm = document.getElementById('login-form');
-    
-    if (!loginForm) {
-        // Forms were replaced, reload the page to get original HTML
-        window.location.reload();
-        return;
-    }
-    
-    // Show/hide existing forms
-    document.getElementById('login-form').style.display = 'block';
-    document.getElementById('register-form').style.display = 'none';
-    
-    const forgotForm = document.getElementById('forgot-password-form');
-    if (forgotForm) {
-        forgotForm.style.display = 'none';
-    }
-}
+// Replace legacy loadView
+window.loadView = window.navigateTo;
 
-function showRegister() {
-    const authSection = document.getElementById('auth-section');
-    const registerForm = document.getElementById('register-form');
-    
-    if (!registerForm) {
-        // Forms were replaced, reload the page
-        window.location.reload();
-        return;
-    }
-    
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('register-form').style.display = 'block';
-    
-    const forgotForm = document.getElementById('forgot-password-form');
-    if (forgotForm) {
-        forgotForm.style.display = 'none';
-    }
-}
-
-function showForgotPassword() {
-    const authSection = document.getElementById('auth-section');
-    const forgotForm = document.getElementById('forgot-password-form');
-    
-    if (!forgotForm) {
-        // Forms were replaced, reload the page
-        window.location.reload();
-        return;
-    }
-    
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('register-form').style.display = 'none';
-    document.getElementById('forgot-password-form').style.display = 'block';
-}
-
-// API Helper with better error handling
-async function apiCall(endpoint, method = 'GET', data = null) {
+// --- API Helper ---
+async function apiCall(endpoint, method = 'GET', data = null, customOptions = {}) {
     const options = {
         method,
         headers: {
             'Content-Type': 'application/json'
-        }
+        },
+        ...customOptions
     };
+
+    if (activeAbortController && !customOptions.ignoreAbort) {
+        options.signal = activeAbortController.signal;
+    }
 
     if (authToken) {
         options.headers['Authorization'] = `Bearer ${authToken}`;
@@ -316,18 +120,15 @@ async function apiCall(endpoint, method = 'GET', data = null) {
 
     try {
         const response = await fetch(`${API_URL}${endpoint}`, options);
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-            // Handle token expiration
-            if (response.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                showAuth();
+            if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/me')) {
+                // Genuine session expiration
+                handleLogout();
                 throw new Error('Session expired. Please login again.');
             }
             
-            // Create error with additional properties
             const error = new Error(result.message || 'Something went wrong');
             error.requiresVerification = result.requiresVerification;
             error.email = result.email;
@@ -337,68 +138,282 @@ async function apiCall(endpoint, method = 'GET', data = null) {
         
         return result;
     } catch (error) {
-        console.error('API Error:', error);
+        if (error.name !== 'AbortError') {
+            console.error('API Error:', error);
+        }
         throw error;
     }
 }
+window.apiCall = apiCall;
 
+// --- Loading State ---
+window.showLoading = function(global = false) {
+    if (global) {
+        let overlay = document.getElementById('global-loading');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'global-loading';
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = '<div class="spinner"></div>';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+    } else {
+        const contentArea = document.getElementById('content-area');
+        if (contentArea) {
+            contentArea.innerHTML = '<div class="spinner"></div>';
+        }
+    }
+};
+
+window.hideLoading = function(global = false) {
+    if (global) {
+        const overlay = document.getElementById('global-loading');
+        if (overlay) overlay.style.display = 'none';
+    }
+};
+
+// --- View Helpers ---
 function showAlert(message, type = 'success') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type}`;
     alertDiv.textContent = message;
     
     const contentArea = document.getElementById('content-area');
-    if (contentArea) {
+    if (contentArea && document.getElementById('dashboard-section').style.display !== 'none') {
         contentArea.insertBefore(alertDiv, contentArea.firstChild);
-        setTimeout(() => alertDiv.remove(), 5000);
     } else {
-        // Show in auth section if dashboard not loaded
         const authSection = document.getElementById('auth-section');
         if (authSection) {
-            authSection.insertBefore(alertDiv, authSection.firstChild);
-            setTimeout(() => alertDiv.remove(), 5000);
+            const form = authSection.querySelector('.auth-form:not([style*="display: none"])');
+            if(form) form.insertBefore(alertDiv, form.firstChild);
+            else authSection.insertBefore(alertDiv, authSection.firstChild);
         }
     }
+    setTimeout(() => alertDiv.remove(), 5000);
 }
+window.showAlert = showAlert;
 
-// Format date helper
 function formatDate(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-    });
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
+window.formatDate = formatDate;
 
 function formatDateTime(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    return date.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
-
-// Make functions globally accessible
-window.showLogin = showLogin;
-window.showRegister = showRegister;
-window.showForgotPassword = showForgotPassword;
-window.showAuth = showAuth;
-window.showDashboard = showDashboard;
-window.showApprovalPortal = showApprovalPortal;
-window.updateAuthState = updateAuthState;
-window.apiCall = apiCall;
-window.showAlert = showAlert;
-window.formatDate = formatDate;
 window.formatDateTime = formatDateTime;
 
-console.log('App.js loaded - functions exposed to window'); // Debug log
+// --- App Initialization ---
+async function checkAuth() {
+    console.log('Checking auth...');
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    
+    if (tokenFromUrl) {
+        authToken = tokenFromUrl;
+        localStorage.setItem('token', tokenFromUrl);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
-// Initialize app
+    if (!authToken) {
+        showAuth();
+        return;
+    }
+
+    try {
+        const user = await apiCall('/auth/me', 'GET', null, { ignoreAbort: true });
+        if (user) {
+            updateAuthState(user, authToken);
+        } else {
+            throw new Error('User not found');
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        if (error.statusCode === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            authToken = null;
+            currentUser = null;
+        }
+        showAuth();
+    }
+}
+
+function updateAuthState(user, token) {
+    currentUser = user;
+    authToken = token;
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', token);
+    
+    if (user.role === 'pending') {
+        showApprovalPortal();
+    } else {
+        showDashboard();
+    }
+}
+window.updateAuthState = updateAuthState;
+
+// Toggle Theme
+window.toggleTheme = function() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.getElementById('theme-icon').textContent = newTheme === 'light' ? '🌙' : '☀️';
+};
+
+// Initialize theme
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, checking auth...'); // Debug log
-    checkAuth();
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) themeIcon.textContent = savedTheme === 'light' ? '🌙' : '☀️';
+    
+    // Check if we are on a reset password route
+    if (window.location.pathname.startsWith('/reset-password/')) {
+        showResetPassword();
+    } else {
+        checkAuth();
+    }
 });
+
+// UI Views
+function showAuth() {
+    document.getElementById('dashboard-section').style.display = 'none';
+    const authSection = document.getElementById('auth-section');
+    if (authSection) authSection.style.display = 'block';
+    
+    const approvalPortal = document.getElementById('approval-portal');
+    if (approvalPortal) approvalPortal.style.display = 'none';
+    
+    showLogin();
+}
+window.showAuth = showAuth;
+
+function showDashboard() {
+    const authSection = document.getElementById('auth-section');
+    if (authSection) authSection.style.display = 'none';
+    
+    const approvalPortal = document.getElementById('approval-portal');
+    if (approvalPortal) approvalPortal.style.display = 'none';
+    
+    document.getElementById('dashboard-section').style.display = 'block';
+    
+    if (currentUser) {
+        document.getElementById('user-name').textContent = currentUser.name;
+        document.getElementById('user-role').textContent = currentUser.role.replace('_', ' ');
+        
+        if (typeof window.buildSidebar === 'function') {
+            window.buildSidebar(currentUser.role);
+        } else if (typeof window.loadDashboard === 'function') {
+            window.loadDashboard();
+        }
+    }
+}
+window.showDashboard = showDashboard;
+
+window.showLogin = function() {
+    document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
+    document.getElementById('login-form').style.display = 'block';
+};
+
+window.showRegister = function() {
+    document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
+    document.getElementById('register-form').style.display = 'block';
+};
+
+window.showForgotPassword = function() {
+    document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
+    const f = document.getElementById('forgot-password-form');
+    if(f) f.style.display = 'block';
+};
+
+window.showResetPassword = function() {
+    document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
+    let f = document.getElementById('reset-password-form');
+    if (!f) {
+        f = document.createElement('div');
+        f.id = 'reset-password-form';
+        f.className = 'auth-form';
+        f.innerHTML = `
+            <h2>New Password</h2>
+            <form id="reset-password-form-element" onsubmit="return handleResetPassword(event)">
+                <div class="form-input-wrapper" data-icon="🔒"><input type="password" id="reset-password" placeholder="New Password" required minlength="6"></div>
+                <button type="submit">Update Password</button>
+            </form>
+            <p><a href="/" onclick="window.location.href='/'; return false;">Back to Login</a></p>
+        `;
+        document.querySelector('.auth-container').appendChild(f);
+    }
+    f.style.display = 'block';
+};
+
+window.showDeleteAccount = function() {
+    document.querySelectorAll('.auth-form').forEach(f => f.style.display = 'none');
+    let f = document.getElementById('delete-account-form');
+    if (!f) {
+        f = document.createElement('div');
+        f.id = 'delete-account-form';
+        f.className = 'auth-form';
+        f.innerHTML = `
+            <h2>Delete Account</h2>
+            <form id="delete-account-form-element" onsubmit="return handleDeleteAccount(event)">
+                <div class="form-input-wrapper" data-icon="📧"><input type="email" id="delete-email" placeholder="Email Address" required></div>
+                <button type="submit" style="background:var(--danger)">Request Deletion</button>
+            </form>
+            <p><a href="#" onclick="showLogin(); return false;">Cancel</a></p>
+        `;
+        document.querySelector('.auth-container').appendChild(f);
+    }
+    f.style.display = 'block';
+};
+
+window.showApprovalPortal = function() {
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('dashboard-section').style.display = 'none';
+    
+    let portalHtml = `
+        <div id="approval-portal" class="auth-container" style="max-width: 600px; margin: 40px auto; position: relative; z-index: 10;">
+            <div style="text-align: center; padding: 40px 20px;">
+                <div style="width: 80px; height: 80px; background: #fff3cd; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                    <span style="font-size: 40px;">⏳</span>
+                </div>
+                <h2>Account Pending Approval</h2>
+                <p>Your warden account request is currently under review by the administrator.</p>
+                <button onclick="handleLogout()" style="margin-top:20px; width:100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    Back to Login
+                </button>
+            </div>
+        </div>
+    `;
+    
+    const existingPortal = document.getElementById('approval-portal');
+    if (existingPortal) existingPortal.remove();
+    document.body.insertAdjacentHTML('beforeend', portalHtml);
+};
+
+window.handleLogout = async function() {
+    console.log('Logging out...');
+    
+    if (activeAbortController) {
+        activeAbortController.abort();
+    }
+    viewHistory.length = 0;
+    
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) contentArea.innerHTML = '';
+    
+    const sidebar = document.getElementById('sidebar-menu');
+    if (sidebar) sidebar.innerHTML = '';
+    
+    showAuth();
+};

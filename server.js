@@ -84,14 +84,9 @@ process.on('uncaughtException', error => {
   console.error('❌ Uncaught exception:', error);
 });
 
-app.use('/api/auth', require('./routes/googleAuthFix'));
-app.use('/api/auth', require('./routes/emailVerificationFix'));
-app.use('/api/auth', require('./routes/authBehaviorFixes'));
-app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/account', require('./routes/account'));
 
-app.use('/api/attendance', require('./routes/attendanceSearchFix'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/attendance-approval', require('./routes/attendanceApproval'));
 app.use('/api/mess-bill', require('./routes/messBill'));
@@ -128,25 +123,7 @@ app.get('/google-callback.html', (req, res) => {
 
 function sendIndex(req, res) {
   try {
-    let html = fs.readFileSync(indexPath, 'utf8');
-
-    if (!html.includes('/css/uiFinalFixes.css')) {
-      html = html.replace(
-        '</head>',
-        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=4">\n</head>'
-      );
-    }
-
-    const finalScripts = `
-    <script src="/js/securityUiFixes.js?v=6"></script>
-    <script src="/js/finalUiBehaviorFixes.js?v=5"></script>
-    <script src="/js/finalAppBehaviorFixes.js?v=3"></script>
-    <script src="/js/stabilityFixes.js?v=3"></script>`;
-
-    if (!html.includes('/js/stabilityFixes.js')) {
-      html = html.replace('</body>', `${finalScripts}\n</body>`);
-    }
-
+    const html = fs.readFileSync(indexPath, 'utf8');
     res.type('html').send(html);
   } catch (error) {
     console.error('Failed to serve index:', error);
