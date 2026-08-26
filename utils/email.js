@@ -1,31 +1,47 @@
-const sgMail = require('@sendgrid/mail');
+const axios = require('axios');
 
 const sendEmail = async (options) => {
-  // Check if SendGrid is configured
-  if (!process.env.SENDGRID_API_KEY) {
-    throw new Error('SendGrid API key not configured. Please add SENDGRID_API_KEY to environment variables.');
+  const apiKey = process.env.BREVO_API_KEY;
+  const fromEmail = process.env.BREVO_FROM_EMAIL;
+  const fromName = process.env.BREVO_FROM_NAME || 'Priyanshu Gupta - NITJ Hostel Management';
+
+  if (!apiKey) {
+    throw new Error('Brevo API key not configured. Please add BREVO_API_KEY to environment variables.');
   }
 
-  if (!process.env.SENDGRID_FROM_EMAIL) {
-    throw new Error('SendGrid from email not configured. Please add SENDGRID_FROM_EMAIL to environment variables.');
+  if (!fromEmail) {
+    throw new Error('Brevo from email not configured. Please add BREVO_FROM_EMAIL to environment variables.');
   }
 
-  // Set SendGrid API key
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  try {
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        sender: {
+          email: fromEmail,
+          name: fromName
+        },
+        to: [{ email: options.email }],
+        subject: options.subject,
+        htmlContent: options.html
+      },
+      {
+        headers: {
+          accept: 'application/json',
+          'api-key': apiKey,
+          'content-type': 'application/json'
+        },
+        timeout: 15000
+      }
+    );
 
-  // Prepare email message
-  const message = {
-    to: options.email,
-    from: {
-      email: process.env.SENDGRID_FROM_EMAIL,
-      name: 'Priyanshu Gupta - NITJ Hostel Management'
-    },
-    subject: options.subject,
-    html: options.html
-  };
-
-  // Send email via SendGrid
-  await sgMail.send(message);
+    console.log('Brevo email sent successfully:', response.data?.messageId || 'accepted');
+    return response.data;
+  } catch (error) {
+    const details = error.response?.data;
+    console.error('Brevo email sending error:', details || error.message);
+    throw new Error(details?.message || details?.code || error.message || 'Failed to send email');
+  }
 };
 
 module.exports = sendEmail;
