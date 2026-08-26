@@ -20,28 +20,16 @@
 <body>
     <div id="app">
         <div id="auth-section">
-            <!-- Animated particles background -->
             <div class="particles-bg">
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
-                <div class="particle"></div>
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
             </div>
-            
             <div class="auth-container">
                 <h1>Hostel Management</h1>
                 <p class="auth-subtitle">Manage your hostel life with ease</p>
-                
+
                 <div id="login-form" class="auth-form">
                     <h2>Welcome Back</h2>
-                    
-                    <!-- Google Sign In Button -->
                     <button type="button" class="btn-google" onclick="handleGoogleLogin()">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10.2V12.05H15.6109C15.3818 13.3 14.6727 14.3591 13.6091 15.0682V17.5773H16.8273C18.7091 15.8364 19.8 13.2727 19.8 10.2273Z" fill="#4285F4"/>
@@ -51,33 +39,21 @@
                         </svg>
                         Continue with Google
                     </button>
-                    
-                    <div class="divider">
-                        <span>OR</span>
-                    </div>
-                    
+                    <div class="divider"><span>OR</span></div>
                     <form id="login-form-element" onsubmit="return handleLogin(event)">
-                        <div class="form-input-wrapper" data-icon="📧">
-                            <input type="email" id="login-email" placeholder="Email Address" required>
-                        </div>
-                        <div class="form-input-wrapper" data-icon="🔒">
-                            <input type="password" id="login-password" placeholder="Password" required>
-                        </div>
+                        <div class="form-input-wrapper" data-icon="📧"><input type="email" id="login-email" placeholder="Email Address" required></div>
+                        <div class="form-input-wrapper" data-icon="🔒"><input type="password" id="login-password" placeholder="Password" required></div>
                         <button type="submit">Sign In</button>
                     </form>
                     <p>Don't have an account? <a href="#" onclick="showRegister(); return false;">Create Account</a></p>
                     <p><a href="#" onclick="showForgotPassword(); return false;">Forgot Password?</a></p>
-                    <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
-                        <a href="#" onclick="showDeleteAccount(); return false;" style="color: var(--danger); font-size: 14px;">
-                            🗑️ Delete My Account
-                        </a>
+                    <p style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+                        <a href="#" onclick="showDeleteAccount(); return false;" style="color:var(--danger);font-size:14px;">🗑️ Delete My Account</a>
                     </p>
                 </div>
 
                 <div id="register-form" class="auth-form" style="display:none;">
                     <h2>Create Account</h2>
-                    
-                    <!-- Google Sign Up Button -->
                     <button type="button" class="btn-google" onclick="handleGoogleLogin()">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10.2V12.05H15.6109C15.3818 13.3 14.6727 14.3591 13.6091 15.0682V17.5773H16.8273C18.7091 15.8364 19.8 13.2727 19.8 10.2273Z" fill="#4285F4"/>
@@ -87,66 +63,33 @@
                         </svg>
                         Sign up with Google
                     </button>
-                    
-                    <div class="divider">
-                        <span>OR</span>
-                    </div>
-                    
+                    <div class="divider"><span>OR</span></div>
                     <form id="register-form-element" onsubmit="return handleRegister(event)">
-                        <div class="form-input-wrapper" data-icon="👤">
-                            <input type="text" id="reg-name" placeholder="Full Name" required>
-                        </div>
-                        <div class="form-input-wrapper" data-icon="🎓">
-                            <input type="text" id="reg-college-id" placeholder="College ID (e.g., CS2024001)" required>
-                        </div>
-                        <div class="form-input-wrapper" data-icon="📧">
-                            <input type="email" id="reg-email" placeholder="Email Address" required>
-                        </div>
-                        <div class="form-input-wrapper" data-icon="🔒">
-                            <input type="password" id="reg-password" placeholder="Password (min 6 characters)" required minlength="6">
-                        </div>
-                        <div class="form-input-wrapper" data-icon="�">
-                            <select id="reg-role" style="padding-left: 50px;">
-                                <option value="student">Student</option>
-                                <option value="warden">Warden (Requires Admin Approval)</option>
-                            </select>
-                        </div>
-                        <div class="form-input-wrapper" data-icon="�">
-                            <input type="text" id="reg-room" placeholder="Room Number (Required for students)">
-                        </div>
-                        <div class="form-input-wrapper" data-icon="🏢">
-                            <input type="text" id="reg-hostel" placeholder="Hostel Block">
-                        </div>
-                        <div class="form-input-wrapper" data-icon="📚">
-                            <input type="text" id="reg-department" placeholder="Department">
-                        </div>
-                        <div class="form-input-wrapper" data-icon="📅">
-                            <input type="number" id="reg-year" placeholder="Year">
-                        </div>
-                        <div class="form-input-wrapper" data-icon="📱">
-                            <input type="tel" id="reg-phone" placeholder="Phone Number">
-                        </div>
+                        <div class="form-input-wrapper" data-icon="👤"><input type="text" id="reg-name" placeholder="Full Name" required></div>
+                        <div class="form-input-wrapper" data-icon="🎓"><input type="text" id="reg-college-id" placeholder="College ID (e.g., CS2024001)" required></div>
+                        <div class="form-input-wrapper" data-icon="📧"><input type="email" id="reg-email" placeholder="Email Address" required></div>
+                        <div class="form-input-wrapper" data-icon="🔒"><input type="password" id="reg-password" placeholder="Password (min 6 characters)" required minlength="6"></div>
+                        <div class="form-input-wrapper" data-icon="👤"><select id="reg-role" style="padding-left:50px;"><option value="student">Student</option><option value="warden">Warden (Requires Admin Approval)</option></select></div>
+                        <div class="form-input-wrapper" data-icon="🚪"><input type="text" id="reg-room" placeholder="Room Number (Required for students)"></div>
+                        <div class="form-input-wrapper" data-icon="🏢"><input type="text" id="reg-hostel" placeholder="Hostel Block"></div>
+                        <div class="form-input-wrapper" data-icon="📚"><input type="text" id="reg-department" placeholder="Department"></div>
+                        <div class="form-input-wrapper" data-icon="📅"><input type="number" id="reg-year" placeholder="Year"></div>
+                        <div class="form-input-wrapper" data-icon="📱"><input type="tel" id="reg-phone" placeholder="Phone Number"></div>
                         <button type="submit">Create Account</button>
                     </form>
                     <p>Already have an account? <a href="#" onclick="showLogin(); return false;">Sign In</a></p>
-                    <div class="alert alert-info" style="margin-top: 20px; font-size: 13px;">
-                        ℹ️ Note: Warden accounts require admin approval
-                    </div>
+                    <div class="alert alert-info" style="margin-top:20px;font-size:13px;">ℹ️ Note: Warden accounts require admin approval</div>
                 </div>
 
                 <div id="forgot-password-form" class="auth-form" style="display:none;">
                     <h2>Reset Password</h2>
                     <form id="forgot-password-form-element" onsubmit="return handleForgotPassword(event)">
-                        <div class="form-input-wrapper" data-icon="📧">
-                            <input type="email" id="forgot-email" placeholder="Email Address" required>
-                        </div>
+                        <div class="form-input-wrapper" data-icon="📧"><input type="email" id="forgot-email" placeholder="Email Address" required></div>
                         <button type="submit">Send Reset Link</button>
                     </form>
                     <p><a href="#" onclick="showLogin(); return false;">Back to Sign In</a></p>
                 </div>
             </div>
-            
-            <!-- Auth Footer -->
             <footer class="auth-footer">
                 <div class="footer-divider"></div>
                 <p class="copyright">© 2026 Hostel Management System • All Rights Reserved</p>
@@ -158,24 +101,15 @@
             <nav class="navbar">
                 <div class="nav-brand">Hostel Management</div>
                 <div class="nav-user">
-                    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
-                        <span id="theme-icon">🌙</span>
-                    </button>
-                    <span id="user-name"></span>
-                    <span class="user-role" id="user-role"></span>
+                    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode"><span id="theme-icon">🌙</span></button>
+                    <span id="user-name"></span><span class="user-role" id="user-role"></span>
                     <button onclick="handleLogout(); return false;">Logout</button>
                 </div>
             </nav>
-
             <div class="dashboard-container">
-                <aside class="sidebar">
-                    <ul id="sidebar-menu"></ul>
-                </aside>
-
+                <aside class="sidebar"><ul id="sidebar-menu"></ul></aside>
                 <main class="main-content">
                     <div id="content-area"></div>
-                    
-                    <!-- Footer -->
                     <footer class="dashboard-footer">
                         <div class="footer-content">
                             <div class="footer-divider-dash"></div>
@@ -192,6 +126,8 @@
     <script src="js/app.js"></script>
     <script src="js/features.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/authFixes.js?v=4"></script>
+    <script src="js/accountSecurityFixes.js?v=1"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/warden.js"></script>
 </body>
