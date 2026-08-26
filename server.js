@@ -111,12 +111,15 @@ app.get('/google-callback.html', (req, res) => {
 function sendIndex(req, res) {
   try {
     let html = fs.readFileSync(indexPath, 'utf8');
-    if (!html.includes('securityUiFixes.js')) {
-      html = html.replace(
-        '</body>',
-        '    <script src="/js/securityUiFixes.js?v=2"></script>\n</body>'
-      );
+    const assetBlock = `
+    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=1">
+    <script src="/js/securityUiFixes.js?v=3"></script>
+    <script src="/js/finalUiBehaviorFixes.js?v=1"></script>`;
+
+    if (!html.includes('/css/uiFinalFixes.css')) {
+      html = html.replace('</head>', `${assetBlock}\n</head>`);
     }
+
     res.type('html').send(html);
   } catch (error) {
     console.error('Failed to serve index:', error);
