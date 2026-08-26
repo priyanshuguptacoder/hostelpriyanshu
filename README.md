@@ -358,6 +358,9 @@ This project represents hundreds of hours of development, featuring:
 
 **Built with ❤️ by Priyanshu**
 
+## 12. Contributors
+- [Priyanshu Gupta](https://github.com/priyanshuguptacoder)
+
 ---
 
 *Hostel Management System v2.2 - Making hostel management easier, one feature at a time.*
