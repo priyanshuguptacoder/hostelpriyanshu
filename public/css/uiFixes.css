@@ -1,0 +1,218 @@
+/* Focused UI/UX fixes layered on top of the main theme. */
+
+.global-alert-container {
+    position: fixed;
+    top: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92vw, 520px);
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.global-alert-container .alert {
+    pointer-events: auto;
+    box-shadow: var(--shadow-lg);
+    animation: fadeIn 0.25s ease-out;
+}
+
+.spinner-overlay {
+    flex-direction: column;
+    gap: 14px;
+    backdrop-filter: blur(4px);
+}
+
+.loading-message {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 14px;
+    background: color-mix(in srgb, var(--light) 92%, transparent);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+}
+
+.page-header-with-back {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.page-back-button {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--light-gray);
+    color: var(--text-primary);
+    border-radius: 999px;
+    padding: 9px 15px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+}
+
+.page-back-button:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateX(-2px);
+    box-shadow: var(--shadow);
+}
+
+.page-back-button:focus-visible,
+.auth-form a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid rgba(99, 102, 241, 0.28);
+    outline-offset: 2px;
+}
+
+.auth-form button[type="button"],
+.auth-form .btn-secondary {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.auth-form button[disabled],
+.btn[disabled] {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.auth-secondary-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.auth-secondary-actions a,
+.auth-secondary-actions button {
+    width: auto !important;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+}
+
+[data-theme="dark"] .page-back-button {
+    background: rgba(30, 41, 59, 0.9);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .loading-message {
+    background: rgba(15, 23, 42, 0.92);
+}
+
+@media (max-width: 900px) {
+    .navbar {
+        padding: 14px 18px;
+    }
+
+    .nav-brand {
+        font-size: 20px;
+    }
+
+    .nav-user {
+        gap: 10px;
+    }
+
+    .nav-user > span:not(.user-role) {
+        display: none;
+    }
+
+    .dashboard-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: 8px 0;
+        position: sticky;
+        top: 70px;
+        z-index: 50;
+    }
+
+    .sidebar ul {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 4px 10px;
+    }
+
+    .sidebar li,
+    .sidebar li:hover,
+    .sidebar li.active {
+        border-left: 0;
+        border-bottom: 3px solid transparent;
+        padding: 11px 14px;
+        white-space: nowrap;
+        transform: none;
+    }
+
+    .sidebar li.active {
+        border-bottom-color: var(--primary);
+    }
+
+    .main-content {
+        padding: 24px 16px;
+    }
+
+    .page-header h2 {
+        font-size: 28px;
+    }
+
+    .card {
+        padding: 22px;
+    }
+
+    .page-header-with-back {
+        grid-template-columns: 1fr;
+    }
+
+    .page-back-button {
+        justify-self: start;
+    }
+}
+
+@media (max-width: 560px) {
+    #auth-section {
+        align-items: flex-start;
+        overflow-y: auto;
+    }
+
+    .auth-container {
+        width: calc(100% - 24px);
+        padding: 24px 18px;
+        margin: 12px auto;
+    }
+
+    .auth-container h1 {
+        font-size: 30px;
+    }
+
+    .auth-form h2 {
+        font-size: 22px;
+    }
+
+    .auth-form button {
+        font-size: 15px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .table-container {
+        box-shadow: none;
+    }
+}
