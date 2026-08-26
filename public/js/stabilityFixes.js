@@ -311,7 +311,10 @@
     if (localStorage.getItem('token') && localStorage.getItem('user')) {
       setTimeout(() => {
         try {
-          stableShowDashboard();
+          const dashboard = document.getElementById('dashboard-section');
+          if (dashboard?.style.display !== 'block') {
+            stableShowDashboard();
+          }
         } catch (error) {
           console.error('Initial dashboard recovery failed:', error);
           window.showAuth?.();
