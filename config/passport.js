@@ -11,35 +11,34 @@ module.exports = function(passport) {
             },
             async (accessToken, refreshToken, profile, done) => {
                 try {
-                    const email = profile.emails[0].value;
-                    
-                    // Validate email domain - must be @nitj.ac.in
-                    if (!email.toLowerCase().endsWith('@nitj.ac.in')) {
-                        return done(new Error('Only NITJ college email addresses (@nitj.ac.in) are allowed'), null);
+                    const email = profile.emails?.[0]?.value;
+
+                    if (!email) {
+                        return done(new Error('Google account did not provide an email address'), null);
                     }
-                    
-                    // Check if user already exists
-                    let user = await User.findOne({ email });
+
+                    let user = await User.findOne({ email: email.toLowerCase() });
 
                     if (user) {
-                        // User exists, return user
                         return done(null, user);
                     }
 
-                    // Create new user
-                    // Generate college ID from email
                     const emailPrefix = email.split('@')[0];
-                    const collegeId = emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10);
+                    const collegeId = emailPrefix
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9]/g, '')
+                        .substring(0, 10) + Date.now().toString().slice(-4);
 
                     user = await User.create({
                         name: profile.displayName,
-                        email: email,
-                        collegeId: collegeId,
-                        password: 'google-oauth-' + Math.random().toString(36).substring(7), // Random password
-                        role: 'student', // Default role
+                        email: email.toLowerCase(),
+                        collegeId,
+                        password: 'google-oauth-' + Math.random().toString(36).substring(7),
+                        role: 'student',
                         googleId: profile.id,
-                        avatar: profile.photos[0]?.value,
-                        isActive: true
+                        avatar: profile.photos?.[0]?.value,
+                        isActive: true,
+                        emailVerified: true
                     });
 
                     done(null, user);
