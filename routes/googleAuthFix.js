@@ -23,11 +23,18 @@ const publicUser = user => ({
   phoneNumber: user.phoneNumber
 });
 
+const escapeHtml = value => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
 const buildOtpHtml = (name, otp) => `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
     <div style="background:white;padding:30px;border-radius:12px;">
       <h2 style="color:#667eea;text-align:center;">Hostel Management</h2>
-      <h3>Hello ${name || 'there'}!</h3>
+      <h3>Hello ${escapeHtml(name || 'there')}!</h3>
       <p>Use the OTP below to verify your email address.</p>
       <div style="background:#667eea;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
         <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your OTP</div>
@@ -95,15 +102,11 @@ router.post('/google/callback', async (req, res) => {
 
     const email = googleUser.email.trim().toLowerCase();
     let user = await User.findOne({ email });
+    let createdNow = false;
 
+    // Continue with Google is intentionally an entry point for both signup and login.
+    // If the account was deleted, using the same Google email creates a fresh student account.
     if (!user) {
-      if (normalizedMode !== 'signup') {
-        return res.status(404).json({
-          success: false,
-          message: 'No account exists with this Google email. Use Sign up with Google first.'
-        });
-      }
-
       const emailPrefix = email.split('@')[0];
       const collegeId = `${emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10)}${Date.now().toString().slice(-6)}`;
 
@@ -119,14 +122,11 @@ router.post('/google/callback', async (req, res) => {
         approvalStatus: 'approved',
         emailVerified: false
       });
+      createdNow = true;
     } else {
-      if (normalizedMode === 'signup' && user.emailVerified) {
-        return res.status(409).json({
-          success: false,
-          message: 'An account already exists with this Google email. Please use Continue with Google from Sign In.'
-        });
+      if (!user.isActive) {
+        return res.status(403).json({ success: false, message: 'This account is deactivated. Please contact the administrator.' });
       }
-
       user.googleId = googleUser.id;
       user.avatar = googleUser.picture;
     }
@@ -149,12 +149,12 @@ router.post('/google/callback', async (req, res) => {
 
       return res.json({
         success: true,
-        message: normalizedMode === 'signup'
-          ? 'Google signup successful. Verify your email with the OTP.'
-          : 'Your Google account email is not verified. A new OTP has been sent.',
+        message: createdNow
+          ? 'Google signup started. Verify your email with the OTP.'
+          : 'Your Google email is not verified. A new OTP has been sent.',
         requiresVerification: true,
         user: publicUser(user),
-        authMode: normalizedMode
+        authMode: createdNow ? 'signup' : normalizedMode
       });
     }
 
