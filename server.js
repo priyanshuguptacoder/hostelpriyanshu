@@ -78,10 +78,14 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 process.on('unhandledRejection', reason => {
   console.error('❌ Unhandled promise rejection:', reason);
+  // Log and shutdown safely to let Render restart
+  process.exit(1);
 });
 
 process.on('uncaughtException', error => {
   console.error('❌ Uncaught exception:', error);
+  // Log and shutdown safely to let Render restart
+  process.exit(1);
 });
 
 app.use('/api/auth', require('./routes/auth'));

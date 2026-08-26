@@ -52,6 +52,7 @@ async function loadDashboard() {
             const wardenStats = await apiCall('/warden-requests');
             pendingWardenCount = wardenStats.stats.pending || 0;
         } catch (error) {
+        if (error.name === 'AbortError') throw error;
             console.log('Could not fetch warden stats:', error);
         }
     }
@@ -85,7 +86,6 @@ async function loadDashboard() {
 
 async function renderStudentDashboard() {
     try {
-        showLoading();
         const today = new Date();
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
@@ -247,9 +247,8 @@ async function renderStudentDashboard() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -308,6 +307,7 @@ async function submitMyAttendance(event) {
         showAlert('Attendance marked successfully!', 'success');
         setTimeout(() => loadView('myAttendance'), 1000);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -376,6 +376,7 @@ async function renderMyAttendance() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -425,6 +426,7 @@ async function renderMyBills() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -511,6 +513,7 @@ async function viewBillDetails(billId) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -587,6 +590,7 @@ async function renderMyComplaints() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -653,6 +657,7 @@ async function submitComplaint(event) {
         showAlert(`Complaint submitted successfully! Ticket ID: ${result.complaint.ticketId}`, 'success');
         setTimeout(() => renderMyComplaints(), 1000);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -697,6 +702,7 @@ async function viewComplaintDetails(complaintId) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -786,6 +792,7 @@ async function loadAnnouncementsList() {
         
         listContainer.innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         document.getElementById('announcements-list').innerHTML = 
             '<div class="alert alert-error">Failed to load announcements</div>';
     }
@@ -825,6 +832,7 @@ async function createAnnouncement(event) {
         // Reload announcements
         loadAnnouncementsList();
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         hideLoading();
         showAlert(error.message || 'Failed to create announcement', 'error');
     }
@@ -838,7 +846,6 @@ window.loadAnnouncementsList = loadAnnouncementsList;
 // ==================== WARDEN REQUEST FUNCTIONS ====================
 async function renderWardenRequest() {
     try {
-        showLoading();
         const result = await apiCall('/warden-requests/my-request');
         
         const html = `
@@ -942,9 +949,8 @@ async function renderWardenRequest() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -959,6 +965,7 @@ async function submitWardenRequest() {
         showAlert(result.message, 'success');
         setTimeout(() => renderWardenRequest(), 1500);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         console.error('❌ Error submitting request:', error);
         hideLoading();
         showAlert(error.message, 'error');
@@ -974,8 +981,6 @@ window.submitWardenRequest = submitWardenRequest;
 
 async function renderAdminDashboard() {
     try {
-        showLoading();
-        
         // Fetch data using warden-requests API
         const wardenRequestsRes = await apiCall('/warden-requests?status=pending');
         
@@ -984,6 +989,7 @@ async function renderAdminDashboard() {
         try {
             allUsersRes = await apiCall('/auth/users');
         } catch (error) {
+        if (error.name === 'AbortError') throw error;
             console.log('Could not fetch users:', error);
         }
         
@@ -1078,16 +1084,14 @@ async function renderAdminDashboard() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
 
 async function renderPendingWardens() {
     try {
-        showLoading();
         console.log('🔍 Fetching warden requests...');
         
         // Fetch all warden requests to show stats
@@ -1200,10 +1204,8 @@ async function renderPendingWardens() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
-        
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         console.error('Error loading warden requests:', error);
         showAlert(error.message || 'Failed to load warden requests', 'error');
     }
@@ -1211,7 +1213,6 @@ async function renderPendingWardens() {
 
 async function renderPendingStudents() {
     try {
-        showLoading();
         const result = await apiCall('/approvals/pending-students');
         
         const html = `
@@ -1259,17 +1260,14 @@ async function renderPendingStudents() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
-        
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
 
 async function renderPendingAttendance() {
     try {
-        showLoading();
         const result = await apiCall('/attendance-approval/pending');
         
         const html = `
@@ -1314,16 +1312,14 @@ async function renderPendingAttendance() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
 
 async function renderAllUsers() {
     try {
-        showLoading();
         const result = await apiCall('/auth/users');
         
         // Group users by role
@@ -1392,9 +1388,8 @@ async function renderAllUsers() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -1411,7 +1406,7 @@ async function filterRequestsByStatus(status) {
 
 async function loadAllWardenRequests(filterStatus = '') {
     try {
-        showLoading();
+
         const url = filterStatus ? `/warden-requests?status=${filterStatus}` : '/warden-requests';
         const result = await apiCall(url);
         
@@ -1500,9 +1495,10 @@ async function loadAllWardenRequests(filterStatus = '') {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
+
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
+
         showAlert(error.message || 'Failed to load requests', 'error');
     }
 }
@@ -1596,6 +1592,7 @@ async function viewRequestDetails(requestId) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message || 'Failed to load request details', 'error');
     }
 }
@@ -1613,7 +1610,6 @@ window.viewRequestDetails = viewRequestDetails;
 
 // Make all dashboard functions globally accessible
 window.loadDashboard = loadDashboard;
-window.loadView = loadView;
 window.submitMyAttendance = submitMyAttendance;
 window.viewBillDetails = viewBillDetails;
 window.closeModal = closeModal;
@@ -1681,6 +1677,7 @@ async function reviewWardenRequest(requestId, action) {
             showAlert(response.message || `Failed to ${action} request`, 'error');
         }
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         if (window.hideLoading) window.hideLoading();
         console.error(`Error ${action}ing warden request:`, error);
         showAlert(error.message || `Error ${action}ing request`, 'error');

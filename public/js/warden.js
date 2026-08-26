@@ -9,7 +9,6 @@
 
 async function renderWardenDashboard() {
     try {
-        showLoading();
         const today = new Date();
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
@@ -168,9 +167,8 @@ async function renderWardenDashboard() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -265,6 +263,7 @@ async function markStudentAttendance(event) {
         document.getElementById('att-remarks').value = '';
         
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -334,6 +333,7 @@ async function viewTodayAttendance() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -390,6 +390,7 @@ async function renderAttendanceReport() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -468,6 +469,7 @@ async function renderManageBills() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -525,6 +527,7 @@ async function generateAllBills(event) {
         showAlert(`Bills generated! Success: ${result.summary.generated}, Failed: ${result.summary.failed}, Skipped: ${result.summary.skipped}`, 'success');
         setTimeout(() => renderManageBills(), 2000);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -599,6 +602,7 @@ async function renderSetRates() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -618,6 +622,7 @@ async function setMessRate(event) {
         showAlert('Mess rate set successfully!', 'success');
         setTimeout(() => renderSetRates(), 1000);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -703,6 +708,7 @@ async function renderAllComplaints() {
         
         document.getElementById('content-area').innerHTML = html;
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -768,6 +774,7 @@ async function manageComplaint(complaintId) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -787,6 +794,7 @@ async function updateComplaintStatus(event, complaintId) {
         closeModal('manageComplaintModal');
         renderAllComplaints();
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -795,7 +803,6 @@ async function updateComplaintStatus(event, complaintId) {
 // ==================== ADMIN: WARDEN REQUESTS MANAGEMENT ====================
 async function renderWardenRequests() {
     try {
-        showLoading();
         const result = await apiCall('/warden-requests');
         
         const html = `
@@ -875,9 +882,8 @@ async function renderWardenRequests() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -906,6 +912,7 @@ async function reviewWardenRequest(requestId, action) {
         showAlert(result.message, 'success');
         setTimeout(() => renderWardenRequests(), 1000);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         hideLoading();
         showAlert(error.message, 'error');
     }
@@ -956,6 +963,7 @@ async function viewWardenRequestDetails(requestId) {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -991,7 +999,6 @@ console.log('Warden.js loaded - all functions exposed');
 // Placeholder functions for views under development
 async function renderAttendanceRecords() {
     try {
-        showLoading();
         const today = new Date();
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
@@ -1050,16 +1057,14 @@ async function renderAttendanceRecords() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
 
 async function renderMessBills() {
     try {
-        showLoading();
         const today = new Date();
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
@@ -1147,16 +1152,14 @@ async function renderMessBills() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
 
 async function renderComplaints() {
     try {
-        showLoading();
         const result = await apiCall('/complaints');
         
         const html = `
@@ -1246,9 +1249,8 @@ async function renderComplaints() {
         `;
         
         document.getElementById('content-area').innerHTML = html;
-        hideLoading();
     } catch (error) {
-        hideLoading();
+        if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
     }
 }
@@ -1306,6 +1308,7 @@ async function markBillPaid(billId) {
         showAlert('Bill marked as paid successfully!', 'success');
         renderMessBills();
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         hideLoading();
         showAlert(error.message, 'error');
     }

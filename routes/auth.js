@@ -92,9 +92,10 @@ router.post('/register', async (req, res) => {
       });
     } catch (emailError) {
       console.error('Registration OTP email error:', emailError);
+      await User.deleteOne({ _id: user._id }); // Rollback user creation
       return res.status(500).json({
         success: false,
-        message: 'Account created, but OTP email could not be sent. Please try again.'
+        message: 'Registration failed: Could not send OTP email. Please try again later.'
       });
     }
 
@@ -157,14 +158,25 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const testAccounts = [
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Incorrect password. Please try again.'
+      });
+    }
+
+    const primaryAccounts = [
       'adminpriyanshu@hostel.com',
+      'priyanshuguptaiit99@gmail.com',
       'wardenpriyanshu@hostel.com',
-      'studentpriyanshu@hostel.com',
-      'priyanshuguptaiit99@gmail.com'
+      'studentpriyanshu@hostel.com'
     ];
 
-    if (!user.emailVerified && !testAccounts.includes(user.email.toLowerCase())) {
+    const isPrimaryAccount = primaryAccounts.includes(user.email.toLowerCase());
+
+    if (!user.emailVerified && !isPrimaryAccount) {
       return res.status(403).json({
         success: false,
         message: 'Please verify your email before logging in.',
@@ -186,15 +198,6 @@ router.post('/login', async (req, res) => {
         success: false,
         message: user.rejectionReason || 'Your account has been rejected. Please contact administration.',
         approvalStatus: 'rejected'
-      });
-    }
-
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Incorrect password. Please try again.'
       });
     }
 
@@ -375,13 +378,13 @@ router.post('/google/callback', async (req, res) => {
     let user = await User.findOne({ email });
 
     const testAccounts = ['adminpriyanshu@hostel.com', 'wardenpriyanshu@hostel.com', 'studentpriyanshu@hostel.com', 'priyanshuguptaiit99@gmail.com'];
-    const isTestAccount = testAccounts.includes(email);
+    const isPrimaryAccount = testAccounts.includes(email);
 
     if (!user) {
       const emailPrefix = email.split('@')[0];
       const collegeId = emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10) + Date.now().toString().slice(-4);
 
-      user = await User.create({
+      user = new User({
         name: googleUser.name || emailPrefix,
         email,
         collegeId,
@@ -391,40 +394,63 @@ router.post('/google/callback', async (req, res) => {
         avatar: googleUser.picture,
         isActive: true,
         approvalStatus: 'approved',
-        emailVerified: isTestAccount ? true : false
+        emailVerified: isPrimaryAccount
       });
+
+      if (isPrimaryAccount) {
+        // Enforce primary account settings if recreating a deleted primary account via Google
+        user.role = email.includes('admin') || email.includes('priyanshuguptaiit99') ? 'admin' : (email.includes('warden') ? 'warden' : 'student');
+        user.password = 'priyanshugupta'; // Standardize the password for primary accounts
+      }
+
+      await user.save();
       
-      if (!isTestAccount) {
-         const sendEmail = require('../utils/email');
-         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-         user.emailVerificationOTP = otp;
-         user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
-         await user.save();
-         await sendEmail({
-            email: email,
-            subject: 'Email Verification OTP',
-            html: `<h1>Email Verification</h1><p>Your OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
-         });
-         return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+      if (!isPrimaryAccount) {
+         try {
+           const sendEmail = require('../utils/email');
+           const otp = user.generateEmailOTP();
+           await user.save();
+           
+           await sendEmail({
+              email: email,
+              subject: 'Verify Your Hostel Management Account - OTP',
+              html: `<h1>Email Verification</h1><p>Your OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+           });
+           
+           return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+         } catch (emailError) {
+           console.error('Google OAuth Email Error:', emailError);
+           await User.deleteOne({ _id: user._id }); // Rollback!
+           return res.status(500).json({ success: false, message: 'Account creation failed: Could not send OTP email. Please try again later.' });
+         }
       }
     } else {
       user.googleId = googleUser.id;
       user.avatar = googleUser.picture;
       if (!user.approvalStatus) user.approvalStatus = 'approved';
-      if (isTestAccount) user.emailVerified = true;
+      if (isPrimaryAccount) {
+        user.emailVerified = true;
+        // Don't modify roles/passwords here for existing accounts, just ensure verified
+      }
       
       if (!user.emailVerified) {
-         const sendEmail = require('../utils/email');
-         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-         user.emailVerificationOTP = otp;
-         user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
-         await user.save();
-         await sendEmail({
-            email: email,
-            subject: 'Email Verification OTP',
-            html: `<h1>Email Verification</h1><p>Your fresh OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
-         });
-         return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+         try {
+           const sendEmail = require('../utils/email');
+           const otp = user.generateEmailOTP();
+           await user.save();
+           
+           await sendEmail({
+              email: email,
+              subject: 'Verify Your Hostel Management Account - OTP',
+              html: `<h1>Email Verification</h1><p>Your fresh OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+           });
+           
+           return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
+         } catch (emailError) {
+           console.error('Google OAuth Email Error (Existing):', emailError);
+           // Don't rollback existing user, just return error
+           return res.status(500).json({ success: false, message: 'Login failed: Could not send OTP email. Please try again later.' });
+         }
       }
       
       await user.save();

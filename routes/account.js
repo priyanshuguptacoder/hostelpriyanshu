@@ -7,6 +7,7 @@ const router = express.Router();
 
 const PRIMARY_EMAILS = new Set([
   'adminpriyanshu@hostel.com',
+  'priyanshuguptaiit99@gmail.com',
   'wardenpriyanshu@hostel.com',
   'studentpriyanshu@hostel.com'
 ]);
