@@ -5,6 +5,12 @@ const sendEmail = require('../utils/email');
 
 const router = express.Router();
 
+const PRIMARY_EMAILS = new Set([
+  'adminpriyanshu@hostel.com',
+  'wardenpriyanshu@hostel.com',
+  'studentpriyanshu@hostel.com'
+]);
+
 const hash = value => crypto.createHash('sha256').update(String(value)).digest('hex');
 const escapeHtml = value => String(value || '')
   .replace(/&/g, '&amp;')
@@ -25,6 +31,13 @@ router.post('/forgot-password', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ success: false, message: 'No account found with this email. Please check the address or register first.' });
+    }
+
+    if (PRIMARY_EMAILS.has(email)) {
+      return res.status(403).json({
+        success: false,
+        message: 'This is a primary system account. Its password is managed by the administrator.'
+      });
     }
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -92,6 +105,13 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Reset link is invalid or expired. Please request a new one.' });
     }
 
+    if (PRIMARY_EMAILS.has(user.email)) {
+      return res.status(403).json({
+        success: false,
+        message: 'This is a primary system account. Its password is managed by the administrator.'
+      });
+    }
+
     user.password = newPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
@@ -112,6 +132,13 @@ router.post('/request-delete-otp', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ success: false, message: 'No account found with this email.' });
+    }
+
+    if (PRIMARY_EMAILS.has(email)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Primary system accounts cannot be deleted.'
+      });
     }
 
     const otp = crypto.randomInt(100000, 1000000).toString();
@@ -168,6 +195,10 @@ router.post('/confirm-delete-otp', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: 'Account not found.' });
+
+    if (PRIMARY_EMAILS.has(email)) {
+      return res.status(403).json({ success: false, message: 'Primary system accounts cannot be deleted.' });
+    }
 
     const valid = user.deleteAccountOTP && user.deleteAccountOTPExpires &&
       Date.now() <= new Date(user.deleteAccountOTPExpires).getTime() &&
