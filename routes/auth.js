@@ -39,6 +39,16 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    if (year) {
+      const yearNum = Number(year);
+      if (!Number.isInteger(yearNum) || yearNum < 1 || yearNum > 4) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year must be between 1 and 4'
+        });
+      }
+    }
+
     let approvalStatus = 'pending';
 
     if (role === 'admin') {
@@ -52,7 +62,7 @@ router.post('/register', async (req, res) => {
       approvalStatus = 'approved';
     }
 
-    const user = await User.create({
+    const user = new User({
       name,
       collegeId,
       email: email.toLowerCase(),
@@ -67,24 +77,24 @@ router.post('/register', async (req, res) => {
       emailVerified: false
     });
 
-    let wardenRequest = null;
-    if (user.role === 'warden') {
-      const WardenRequest = require('../models/WardenRequest');
-      wardenRequest = await WardenRequest.create({
-        userId: user._id,
-        name: user.name,
-        email: user.email,
-        collegeId: user.collegeId,
-        department: user.department,
-        phoneNumber: user.phoneNumber,
-        status: 'pending'
-      });
-    }
-
     const otp = user.generateEmailOTP();
     await user.save();
 
+    let wardenRequest = null;
     try {
+      if (user.role === 'warden') {
+        const WardenRequest = require('../models/WardenRequest');
+        wardenRequest = await WardenRequest.create({
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          collegeId: user.collegeId,
+          department: user.department,
+          phoneNumber: user.phoneNumber,
+          status: 'pending'
+        });
+      }
+
       await sendEmail({
         email: user.email,
         subject: 'Verify Your Hostel Management Account - OTP',
@@ -104,8 +114,8 @@ router.post('/register', async (req, res) => {
           </div>
         `
       });
-    } catch (emailError) {
-      console.error('Registration OTP email error:', emailError);
+    } catch (processError) {
+      console.error('Registration process error:', processError);
       await User.deleteOne({ _id: user._id }); // Rollback user creation
       if (wardenRequest) {
         const WardenRequest = require('../models/WardenRequest');
@@ -113,7 +123,7 @@ router.post('/register', async (req, res) => {
       }
       return res.status(500).json({
         success: false,
-        message: 'Registration failed: Could not send OTP email. Please try again later.'
+        message: 'Registration failed: Could not send OTP email or create request. Please try again later.'
       });
     }
 
@@ -133,9 +143,9 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
+    res.status(400).json({
       success: false,
-      message: 'Registration failed',
+      message: 'Registration failed. Check inputs.',
       error: error.message
     });
   }

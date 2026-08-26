@@ -24,7 +24,7 @@ async function handleLogin(event) {
         submitBtn.textContent = 'Signing in...';
         submitBtn.disabled = true;
 
-        const result = await apiCall('/auth/login', 'POST', { email, password });
+        const result = await apiCall('/auth/login', 'POST', { email, password }, { ignoreAbort: true });
 
         if (result.token) {
             window.updateAuthState(result.user, result.token);
@@ -75,7 +75,7 @@ async function handleRegister(event) {
         submitBtn.textContent = 'Creating account...';
         submitBtn.disabled = true;
 
-        const result = await apiCall('/auth/register', 'POST', data);
+        const result = await apiCall('/auth/register', 'POST', data, { ignoreAbort: true });
 
         verificationEmail = data.email;
 

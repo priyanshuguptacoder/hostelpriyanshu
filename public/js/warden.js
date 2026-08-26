@@ -450,16 +450,19 @@ async function renderManageBills() {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${result.bills.map(b => `
+                                ${result.bills.map(b => {
+                                    const student = b.studentId || {};
+                                    return `
                                     <tr>
-                                        <td>${b.studentId.name}</td>
-                                        <td>${b.studentId.collegeId}</td>
+                                        <td>${student.name || 'Deleted / Unknown Student'}</td>
+                                        <td>${student.collegeId || 'N/A'}</td>
                                         <td>${b.totalDays}</td>
                                         <td>₹${b.totalAmount}</td>
                                         <td><span class="badge badge-${b.paymentStatus === 'paid' ? 'success' : 'warning'}">${b.paymentStatus}</span></td>
                                         <td><button class="btn btn-sm" onclick="viewBillDetails('${b._id}')">View</button></td>
                                     </tr>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -529,8 +532,16 @@ async function generateAllBills(event) {
 
     try {
         const result = await apiCall('/mess-bill/generate-all', 'POST', data);
-        showAlert(`Bills generated! Success: ${result.summary.generated}, Failed: ${result.summary.failed}, Skipped: ${result.summary.skipped}`, 'success');
-        setTimeout(() => renderManageBills(), 2000);
+        const { total, generated, failed, skipped } = result.summary;
+        let title = '';
+        if (generated > 0) title = 'Bills generated successfully.';
+        else if (generated === 0 && skipped > 0) title = 'No new bills generated. All selected students already have bills.';
+        else if (failed > 0) title = 'Some bills could not be generated.';
+        else title = 'Bill Generation Complete.';
+
+        const message = `${title}\nTotal Students: ${total}\nNew Bills: ${generated}\nAlready Existing: ${skipped}\nFailed: ${failed}`;
+        showAlert(message, failed > 0 ? 'warning' : 'success');
+        setTimeout(() => renderManageBills(), 3000);
     } catch (error) {
         if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');

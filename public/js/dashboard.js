@@ -450,9 +450,9 @@ async function viewBillDetails(billId) {
                     </div>
                     <div>
                         <div style="margin-bottom: 20px;">
-                            <p><strong>Student:</strong> ${bill.studentId.name}</p>
-                            <p><strong>College ID:</strong> ${bill.studentId.collegeId}</p>
-                            <p><strong>Room:</strong> ${bill.studentId.roomNumber}</p>
+                            <p><strong>Student:</strong> ${bill.studentId?.name || 'Deleted / Unknown Student'}</p>
+                            <p><strong>College ID:</strong> ${bill.studentId?.collegeId || 'N/A'}</p>
+                            <p><strong>Room:</strong> ${bill.studentId?.roomNumber || 'N/A'}</p>
                         </div>
                         
                         <h4 style="margin-bottom: 16px;">Billing Details</h4>
