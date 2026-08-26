@@ -29,7 +29,6 @@ app.use(cors({
     if (!origin || process.env.NODE_ENV !== 'production' || allowedOrigins.length === 0) {
       return callback(null, true);
     }
-
     return callback(null, allowedOrigins.includes(origin));
   },
   credentials: true
@@ -64,7 +63,9 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-// Hardened authentication routes come first so legacy handlers cannot override fixes.
+// Authentication fixes are deliberately mounted before legacy handlers.
+app.use('/api/auth', require('./routes/googleAuthFix'));
+app.use('/api/auth', require('./routes/emailVerificationFix'));
 app.use('/api/auth', require('./routes/authBehaviorFixes'));
 app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
@@ -125,20 +126,15 @@ app.get('*', (req, res) => {
   if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
     return res.status(404).send('File not found');
   }
-
   sendIndex(req, res);
 });
 
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  });
+  res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
