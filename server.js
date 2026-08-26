@@ -70,6 +70,8 @@ app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/account', require('./routes/account'));
 
+// Small focused route modules are mounted before broad feature routes.
+app.use('/api/attendance', require('./routes/attendanceSearchFix'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/attendance-approval', require('./routes/attendanceApproval'));
 app.use('/api/mess-bill', require('./routes/messBill'));
