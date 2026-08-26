@@ -1039,7 +1039,7 @@ async function renderAttendanceRecords() {
                     <button class="btn btn-sm" onclick="exportTableToCSV('attendance-table', 'attendance-report.csv')">📥 Export CSV</button>
                 </div>
                 
-                ${result.attendance && result.attendance.length > 0 ? `
+                ${result.report && result.report.length > 0 ? `
                     <div class="table-container">
                         <table id="attendance-table">
                             <thead>
@@ -1053,16 +1053,17 @@ async function renderAttendanceRecords() {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${result.attendance.map(record => {
-                                    const total = record.present + record.absent;
-                                    const percentage = total > 0 ? Math.round((record.present / total) * 100) : 0;
+                                ${result.report.map(record => {
+                                    const att = record.attendance || {};
+                                    const total = (att.present || 0) + (att.absent || 0);
+                                    const percentage = total > 0 ? Math.round(((att.present || 0) / total) * 100) : 0;
                                     return `
                                         <tr>
-                                            <td><strong>${record.student.name}</strong></td>
-                                            <td>${record.student.collegeId}</td>
-                                            <td>${record.student.roomNumber || 'N/A'}</td>
-                                            <td style="color: var(--success)">${record.present}</td>
-                                            <td style="color: var(--danger)">${record.absent}</td>
+                                            <td><strong>${record.student?.name || 'Unknown'}</strong></td>
+                                            <td>${record.student?.collegeId || 'N/A'}</td>
+                                            <td>${record.student?.roomNumber || 'N/A'}</td>
+                                            <td style="color: var(--success)">${att.present || 0}</td>
+                                            <td style="color: var(--danger)">${att.absent || 0}</td>
                                             <td>
                                                 <span class="badge ${percentage >= 75 ? 'badge-success' : percentage >= 50 ? 'badge-warning' : 'badge-danger'}">
                                                     ${percentage}%

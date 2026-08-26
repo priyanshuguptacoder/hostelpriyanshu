@@ -170,11 +170,14 @@ router.get('/:id', protect, async (req, res) => {
     }
 
     // Check ownership for students
-    if (req.user.role === 'student' && complaint.studentId._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Not authorized to view this complaint' 
-      });
+    if (req.user.role === 'student') {
+      const isOwner = complaint.studentId && complaint.studentId._id.toString() === req.user._id.toString();
+      if (!isOwner) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Not authorized to view this complaint' 
+        });
+      }
     }
 
     res.json({

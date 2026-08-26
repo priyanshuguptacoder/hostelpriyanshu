@@ -297,11 +297,14 @@ router.get('/:id', protect, async (req, res) => {
     }
 
     // Check ownership for students
-    if (req.user.role === 'student' && bill.studentId._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Not authorized to view this bill' 
-      });
+    if (req.user.role === 'student') {
+      const isOwner = bill.studentId && bill.studentId._id.toString() === req.user._id.toString();
+      if (!isOwner) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Not authorized to view this bill' 
+        });
+      }
     }
 
     res.json({
