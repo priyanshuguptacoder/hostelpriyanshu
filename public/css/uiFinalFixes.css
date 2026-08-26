@@ -1,4 +1,4 @@
-/* Final UI refinements: navigation and global loading. */
+/* Final UI refinements: navigation, loading and view states. */
 
 .page-header-with-back {
     position: relative !important;
@@ -67,6 +67,62 @@
 
 [data-theme="dark"] .page-back-button:hover {
     background: rgba(99,102,241,.18) !important;
+}
+
+.view-loading-state {
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.view-loading-state .spinner {
+    width: 48px;
+    height: 48px;
+}
+
+.view-loading-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.view-loading-subtitle {
+    font-size: 13px;
+}
+
+.view-load-error {
+    max-width: 640px;
+    margin: 40px auto;
+    text-align: center;
+    padding: 40px 28px !important;
+}
+
+.view-load-error-icon {
+    font-size: 42px;
+    margin-bottom: 14px;
+}
+
+.view-load-error h3 {
+    margin: 0 0 10px;
+    color: var(--text-primary);
+}
+
+.view-load-error p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.view-load-error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 22px;
 }
 
 #loading-overlay.spinner-overlay {
