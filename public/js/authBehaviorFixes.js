@@ -1,6 +1,7 @@
 (() => {
   let googlePopup = null;
   let googleMessageHandler = null;
+  let registering = false;
 
   const clearGoogleListener = () => {
     if (googleMessageHandler) {
@@ -8,23 +9,6 @@
       googleMessageHandler = null;
     }
   };
-
-  const publicUser = (user) => ({
-    _id: user._id,
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    collegeId: user.collegeId,
-    role: user.role,
-    approvalStatus: user.approvalStatus,
-    emailVerified: user.emailVerified,
-    avatar: user.avatar,
-    roomNumber: user.roomNumber,
-    hostelBlock: user.hostelBlock,
-    department: user.department,
-    year: user.year,
-    phoneNumber: user.phoneNumber
-  });
 
   async function handleLoginBehaviorFix(event) {
     event.preventDefault();
@@ -72,6 +56,82 @@
     return false;
   }
 
+  async function handleRegisterBehaviorFix(event) {
+    event.preventDefault();
+
+    if (registering) return false;
+    registering = true;
+
+    const submitButton = document.querySelector('#register-form-element button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.dataset.originalText = submitButton.textContent;
+      submitButton.textContent = 'Creating Account...';
+    }
+
+    const role = document.getElementById('reg-role')?.value || 'student';
+    const email = document.getElementById('reg-email')?.value.trim().toLowerCase();
+    const roomNumber = document.getElementById('reg-room')?.value.trim();
+    const password = document.getElementById('reg-password')?.value || '';
+
+    if (password.length < 6) {
+      window.showAlert?.('Password must be at least 6 characters.', 'error');
+      registering = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = submitButton.dataset.originalText || 'Create Account';
+      }
+      return false;
+    }
+
+    if (role === 'student' && !roomNumber) {
+      window.showAlert?.('Room number is required for student accounts.', 'error');
+      registering = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = submitButton.dataset.originalText || 'Create Account';
+      }
+      return false;
+    }
+
+    const data = {
+      name: document.getElementById('reg-name')?.value.trim(),
+      collegeId: document.getElementById('reg-college-id')?.value.trim(),
+      email,
+      password,
+      role,
+      roomNumber,
+      hostelBlock: document.getElementById('reg-hostel')?.value.trim(),
+      department: document.getElementById('reg-department')?.value.trim(),
+      year: document.getElementById('reg-year')?.value ? Number(document.getElementById('reg-year').value) : null,
+      phoneNumber: document.getElementById('reg-phone')?.value.trim()
+    };
+
+    try {
+      const result = await window.apiCall('/auth/register', 'POST', data);
+      document.getElementById('register-form-element')?.reset();
+
+      if (result.requiresVerification) {
+        window.showAlert?.('Account created. A verification OTP was sent to your email.', 'success');
+        setTimeout(() => window.showEmailVerification?.(result.user?.email || email), 250);
+      } else {
+        window.showAlert?.(result.message || 'Registration successful.', 'success');
+        setTimeout(() => window.showLogin?.(), 700);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      window.showAlert?.(error.message || 'Unable to create the account.', 'error');
+    } finally {
+      registering = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = submitButton.dataset.originalText || 'Create Account';
+      }
+    }
+
+    return false;
+  }
+
   async function handleGoogleLoginBehaviorFix() {
     try {
       window.showLoading?.();
@@ -84,20 +144,15 @@
       const left = Math.max(0, (window.screen.width - width) / 2);
       const top = Math.max(0, (window.screen.height - height) / 2);
 
-      googlePopup = window.open(
-        result.url,
-        'Google Sign In',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
+      googlePopup = window.open(result.url, 'Google Sign In', `width=${width},height=${height},left=${left},top=${top}`);
 
       if (!googlePopup) {
-        window.hideLoading?.();
+        window.hideLoading?.(true);
         window.showAlert?.('Popup blocked. Allow popups for this site and try again.', 'error');
         return;
       }
 
       clearGoogleListener();
-
       googleMessageHandler = async (event) => {
         if (!event.data || !['GOOGLE_AUTH_SUCCESS', 'GOOGLE_AUTH_ERROR'].includes(event.data.type)) return;
         if (event.source !== googlePopup) return;
@@ -106,7 +161,7 @@
           clearGoogleListener();
           googlePopup.close();
           googlePopup = null;
-          window.hideLoading?.();
+          window.hideLoading?.(true);
           window.showAlert?.('Google authentication was cancelled or failed.', 'error');
           return;
         }
@@ -116,7 +171,7 @@
           clearGoogleListener();
           googlePopup.close();
           googlePopup = null;
-          window.hideLoading?.();
+          window.hideLoading?.(true);
           window.showAlert?.('Google did not return an authorization code.', 'error');
           return;
         }
@@ -127,10 +182,10 @@
 
         try {
           const authResult = await window.apiCall('/auth/google/callback', 'POST', { code });
-          window.hideLoading?.();
+          window.hideLoading?.(true);
 
           if (authResult.requiresVerification) {
-            window.showAlert?.('Google signup found an unverified email. Check your email for the OTP.', 'warning');
+            window.showAlert?.('Google signup/login needs email verification. Check your email for the OTP.', 'warning');
             setTimeout(() => window.showEmailVerification?.(authResult.user?.email), 250);
             return;
           }
@@ -146,19 +201,20 @@
             setTimeout(() => window.showDashboard?.(), 250);
           }
         } catch (error) {
-          window.hideLoading?.();
+          window.hideLoading?.(true);
           window.showAlert?.(error.message || 'Google authentication failed.', 'error');
         }
       };
 
       window.addEventListener('message', googleMessageHandler);
     } catch (error) {
-      window.hideLoading?.();
+      window.hideLoading?.(true);
       console.error('Google login start error:', error);
       window.showAlert?.(error.message || 'Unable to start Google sign-in.', 'error');
     }
   }
 
   window.handleLogin = handleLoginBehaviorFix;
+  window.handleRegister = handleRegisterBehaviorFix;
   window.handleGoogleLogin = handleGoogleLoginBehaviorFix;
 })();
