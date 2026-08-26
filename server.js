@@ -10,12 +10,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const session = require('express-session');
 const passport = require('passport');
 
 dotenv.config();
 
 const app = express();
+const indexPath = path.join(__dirname, 'public', 'index.html');
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
@@ -52,7 +54,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-// Fixed authentication routes MUST be mounted before the legacy router.
+// Fixed authentication routes must be mounted before the legacy auth router.
 app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/account', require('./routes/account'));
@@ -73,12 +75,34 @@ app.get('/google-callback.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'google-callback.html'));
 });
 
+function sendIndex(req, res) {
+  try {
+    let html = fs.readFileSync(indexPath, 'utf8');
+
+    if (!html.includes('js/authFixes.js')) {
+      html = html.replace(
+        '</body>',
+        '    <script src="js/authFixes.js"></script>\n</body>'
+      );
+    }
+
+    res.type('html').send(html);
+  } catch (error) {
+    console.error('Failed to serve index:', error);
+    res.status(500).send('Unable to load application');
+  }
+}
+
+// Serve the SPA with the authentication fixes injected after auth.js.
+app.get('/', sendIndex);
+app.get('/index.html', sendIndex);
+
 app.get('*', (req, res) => {
   if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
     return res.status(404).send('File not found');
   }
 
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  sendIndex(req, res);
 });
 
 app.use((err, req, res, next) => {
