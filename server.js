@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
 const passport = require('passport');
+const ensurePrimaryAccounts = require('./utils/ensurePrimaryAccounts');
 
 dotenv.config();
 
@@ -53,7 +54,15 @@ try {
 }
 
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
+  .then(async () => {
+    console.log('✅ MongoDB connected');
+    try {
+      await ensurePrimaryAccounts();
+      console.log('✅ Primary accounts ready');
+    } catch (seedError) {
+      console.error('❌ Primary account setup failed:', seedError);
+    }
+  })
   .catch(err => console.error('❌ MongoDB error:', err));
 
 app.use('/api/auth', require('./routes/googleAuthFix'));
