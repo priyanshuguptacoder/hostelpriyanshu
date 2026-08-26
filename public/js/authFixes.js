@@ -9,6 +9,52 @@
     }
   }
 
+  async function handleLoginFixed(event) {
+    event.preventDefault();
+
+    const email = document.getElementById('login-email')?.value.trim().toLowerCase();
+    const password = document.getElementById('login-password')?.value;
+
+    if (!email || !password) {
+      window.showAlert('Email and password are required.', 'error');
+      return false;
+    }
+
+    try {
+      const result = await window.apiCall('/auth/login', 'POST', { email, password });
+
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+      window.updateAuthState?.(result.token, result.user);
+
+      if (result.user.approvalStatus === 'pending' || result.user.approvalStatus === 'rejected') {
+        window.showApprovalPortal(result.user);
+      } else {
+        window.showAlert('Login successful!', 'success');
+        setTimeout(() => window.showDashboard(), 300);
+      }
+    } catch (error) {
+      console.error('Fixed login error:', error);
+
+      if (error.requiresVerification) {
+        const emailToVerify = error.email || email;
+
+        try {
+          await window.apiCall('/auth/send-verification-otp', 'POST', { email: emailToVerify });
+          window.showAlert('OTP sent. Please verify your email before logging in.', 'warning');
+          setTimeout(() => window.showEmailVerification(emailToVerify), 300);
+        } catch (otpError) {
+          console.error('Login OTP error:', otpError);
+          window.showAlert(otpError.message || 'Could not send verification OTP.', 'error');
+        }
+      } else {
+        window.showAlert(error.message || 'Login failed', 'error');
+      }
+    }
+
+    return false;
+  }
+
   async function handleRegisterFixed(event) {
     event.preventDefault();
 
@@ -160,6 +206,17 @@
     return false;
   }
 
+  async function resendOTPFixed(email) {
+    try {
+      window.showAlert('Sending OTP to your email...', 'info');
+      const result = await window.apiCall('/auth/send-verification-otp', 'POST', { email });
+      window.showAlert(result.message || 'OTP sent. Check your email.', 'success');
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      window.showAlert(error.message || 'Failed to resend OTP.', 'error');
+    }
+  }
+
   function showResetPassword(token) {
     const authSection = document.getElementById('auth-section');
     if (!authSection || !token) return;
@@ -183,8 +240,7 @@
       </div>
     `;
 
-    const form = document.getElementById('reset-password-form');
-    form.addEventListener('submit', async (event) => {
+    document.getElementById('reset-password-form').addEventListener('submit', async (event) => {
       event.preventDefault();
 
       const password = document.getElementById('reset-password').value;
@@ -266,9 +322,11 @@
     });
   }
 
+  window.handleLogin = handleLoginFixed;
   window.handleRegister = handleRegisterFixed;
   window.handleGoogleLogin = handleGoogleLoginFixed;
   window.handleForgotPassword = handleForgotPasswordFixed;
+  window.resendOTP = resendOTPFixed;
   window.showResetPassword = showResetPassword;
   window.showDeleteAccount = showDeleteAccountFixed;
 
