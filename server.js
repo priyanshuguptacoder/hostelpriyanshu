@@ -53,7 +53,18 @@ try {
   console.log('⚠️ Passport config not found:', err.message);
 }
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connection.on('error', error => {
+  console.error('❌ MongoDB connection error:', error);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected');
+});
+
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 10000,
+  connectTimeoutMS: 10000
+})
   .then(async () => {
     console.log('✅ MongoDB connected');
     try {
@@ -64,6 +75,14 @@ mongoose.connect(process.env.MONGODB_URI)
     }
   })
   .catch(err => console.error('❌ MongoDB error:', err));
+
+process.on('unhandledRejection', reason => {
+  console.error('❌ Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', error => {
+  console.error('❌ Uncaught exception:', error);
+});
 
 // Auth route ordering matters. Keep dedicated fixes before legacy handlers.
 app.use('/api/auth', require('./routes/googleAuthFix'));
@@ -115,13 +134,13 @@ function sendIndex(req, res) {
     if (!html.includes('/css/uiFinalFixes.css')) {
       html = html.replace(
         '</head>',
-        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=1">\n</head>'
+        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=2">\n</head>'
       );
     }
 
     const finalScripts = `
-    <script src="/js/securityUiFixes.js?v=3"></script>
-    <script src="/js/finalUiBehaviorFixes.js?v=2"></script>`;
+    <script src="/js/securityUiFixes.js?v=4"></script>
+    <script src="/js/finalUiBehaviorFixes.js?v=3"></script>`;
 
     if (!html.includes('/js/finalUiBehaviorFixes.js')) {
       html = html.replace('</body>', `${finalScripts}\n</body>`);
