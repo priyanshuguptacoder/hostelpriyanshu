@@ -35,12 +35,14 @@
 
     goingBack = true;
     try {
-      await originalLoadView(target);
+      // Use the current global loadView so the final stability controller
+      // can serialize, timeout, and recover the navigation.
+      await window.loadView(target);
       currentView = target;
     } finally {
       goingBack = false;
       decorateCurrentView();
-      window.hideLoading?.();
+      window.hideLoading?.(true);
     }
   }
 
@@ -58,7 +60,7 @@
       backButton = document.createElement('button');
       backButton.type = 'button';
       backButton.className = 'page-back-button';
-      backButton.addEventListener('click', goBackInApp);
+      backButton.addEventListener('click', () => window.goBackInApp?.());
       header.insertBefore(backButton, header.firstChild);
     }
 
@@ -73,7 +75,7 @@
       return await originalLoadView(viewName);
     } finally {
       decorateCurrentView();
-      window.hideLoading?.();
+      window.hideLoading?.(true);
     }
   }
 
