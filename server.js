@@ -1,8 +1,8 @@
 /**
  * Hostel Management System
- * 
+ *
  * @author Priyanshu
- * @version 2.2
+ * @version 2.3
  */
 
 const express = require('express');
@@ -17,10 +17,6 @@ dotenv.config();
 
 const app = express();
 
-// =======================
-// MIDDLEWARE
-// =======================
-
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.ALLOWED_ORIGINS?.split(',') || true
@@ -30,13 +26,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files (IMPORTANT)
 app.use(express.static(path.join(__dirname, 'public')));
-
-// =======================
-// SESSION (Google OAuth)
-// =======================
 
 app.use(session({
   secret: process.env.JWT_SECRET || 'change-this-secret',
@@ -48,7 +38,6 @@ app.use(session({
   }
 }));
 
-// Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -59,19 +48,15 @@ try {
   console.log('⚠️ Passport config not found');
 }
 
-// =======================
-// DATABASE
-// =======================
-
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-// =======================
-// API ROUTES
-// =======================
-
+// Fixed authentication routes MUST be mounted before the legacy router.
+app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/account', require('./routes/account'));
+
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/attendance-approval', require('./routes/attendanceApproval'));
 app.use('/api/mess-bill', require('./routes/messBill'));
@@ -80,34 +65,21 @@ app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/warden-requests', require('./routes/wardenRequests'));
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server running' });
 });
 
-// =======================
-// SPA FALLBACK
-// =======================
-
-// Serve google-callback.html explicitly
 app.get('/google-callback.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'google-callback.html'));
 });
 
-// Catch-all for SPA (only for non-file requests)
 app.get('*', (req, res) => {
-  // If requesting a static file, let express.static handle it
   if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
     return res.status(404).send('File not found');
   }
-  
-  // Otherwise serve index.html for SPA routing
+
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
-// =======================
-// ERROR HANDLER
-// =======================
 
 app.use((err, req, res, next) => {
   console.error(err);
@@ -116,10 +88,6 @@ app.use((err, req, res, next) => {
     message: 'Internal server error'
   });
 });
-
-// =======================
-// START SERVER
-// =======================
 
 const PORT = process.env.PORT || 5000;
 
