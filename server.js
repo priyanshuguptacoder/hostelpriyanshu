@@ -28,7 +28,6 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
   secret: process.env.JWT_SECRET || 'change-this-secret',
@@ -92,6 +91,9 @@ function sendIndex(req, res) {
     res.status(500).send('Unable to load application');
   }
 }
+
+// Keep static assets available but do not let express.static serve index.html first.
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Serve the SPA with the authentication fixes injected after auth.js.
 app.get('/', sendIndex);
