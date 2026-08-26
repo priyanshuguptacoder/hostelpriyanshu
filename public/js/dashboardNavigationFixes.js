@@ -12,6 +12,8 @@
     return role === 'admin' ? 'adminDashboard' : role === 'warden' ? 'wardenDashboard' : 'studentDashboard';
   };
 
+  const isHomeView = viewName => ['adminDashboard', 'wardenDashboard', 'studentDashboard'].includes(viewName);
+
   function rememberTransition(nextView) {
     if (goingBack || !nextView || nextView === currentView) return;
     if (currentView) {
@@ -38,30 +40,41 @@
     } finally {
       goingBack = false;
       decorateCurrentView();
+      window.hideLoading?.();
     }
   }
 
   function decorateCurrentView() {
     const content = document.getElementById('content-area');
-    if (!content) return;
+    if (!content || isHomeView(currentView)) return;
 
     const header = content.querySelector('.page-header');
-    if (!header || header.querySelector('.page-back-button')) return;
-
-    const backButton = document.createElement('button');
-    backButton.type = 'button';
-    backButton.className = 'page-back-button';
-    backButton.textContent = '← Back';
-    backButton.addEventListener('click', goBackInApp);
+    if (!header) return;
 
     header.classList.add('page-header-with-back');
-    header.insertBefore(backButton, header.firstChild);
+
+    let backButton = header.querySelector('.page-back-button');
+    if (!backButton) {
+      backButton = document.createElement('button');
+      backButton.type = 'button';
+      backButton.className = 'page-back-button';
+      backButton.addEventListener('click', goBackInApp);
+      header.insertBefore(backButton, header.firstChild);
+    }
+
+    backButton.setAttribute('aria-label', 'Go back');
+    backButton.title = 'Go back';
+    backButton.textContent = '←  Back';
   }
 
   async function enhancedLoadView(viewName) {
     rememberTransition(viewName);
-    await originalLoadView(viewName);
-    decorateCurrentView();
+    try {
+      return await originalLoadView(viewName);
+    } finally {
+      decorateCurrentView();
+      window.hideLoading?.();
+    }
   }
 
   window.loadView = enhancedLoadView;
