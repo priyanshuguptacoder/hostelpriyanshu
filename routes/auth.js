@@ -67,6 +67,20 @@ router.post('/register', async (req, res) => {
       emailVerified: false
     });
 
+    let wardenRequest = null;
+    if (user.role === 'warden') {
+      const WardenRequest = require('../models/WardenRequest');
+      wardenRequest = await WardenRequest.create({
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        collegeId: user.collegeId,
+        department: user.department,
+        phoneNumber: user.phoneNumber,
+        status: 'pending'
+      });
+    }
+
     const otp = user.generateEmailOTP();
     await user.save();
 
@@ -93,6 +107,10 @@ router.post('/register', async (req, res) => {
     } catch (emailError) {
       console.error('Registration OTP email error:', emailError);
       await User.deleteOne({ _id: user._id }); // Rollback user creation
+      if (wardenRequest) {
+        const WardenRequest = require('../models/WardenRequest');
+        await WardenRequest.deleteOne({ _id: wardenRequest._id }); // Rollback warden request
+      }
       return res.status(500).json({
         success: false,
         message: 'Registration failed: Could not send OTP email. Please try again later.'
