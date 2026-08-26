@@ -13,10 +13,11 @@ dotenv.config();
 
     console.log('\n🎉 Primary accounts are ready.');
     console.log('Admin:   adminpriyanshu@hostel.com');
+    console.log('Admin:   priyanshuguptaiit99@gmail.com');
     console.log('Warden:  wardenpriyanshu@hostel.com');
     console.log('Student: studentpriyanshu@hostel.com');
-    console.log('Password for all three: priyanshugupta');
-    console.log('All three accounts are email-verified and approved.');
+    console.log('Password for all primary accounts: priyanshugupta');
+    console.log('All primary accounts are email-verified and approved.');
 
     await mongoose.disconnect();
     process.exit(0);
