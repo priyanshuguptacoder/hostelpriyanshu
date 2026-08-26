@@ -34,7 +34,6 @@
   let viewHistory = [];
   let explicitBackTarget = null;
   let baseLoadView = null;
-  let baseGoBackInApp = null;
 
   const contentArea = () => document.getElementById('content-area');
   const roleHome = () => {
@@ -52,7 +51,6 @@
   function showLoadingSafe(message = 'Working...') {
     const dashboardVisible = document.getElementById('dashboard-section')?.style.display === 'block';
     if (dashboardVisible) return;
-
     loadingDepth += 1;
     if (document.getElementById('loading-overlay')) return;
 
@@ -74,19 +72,14 @@
 
   async function apiCallSafe(endpoint, method = 'GET', data = null) {
     const token = window.authToken || localStorage.getItem('token');
-    const options = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin'
-    };
-
+    const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
     if (token) options.headers.Authorization = `Bearer ${token}`;
     if (data !== null && data !== undefined) options.body = JSON.stringify(data);
 
     const requestController = new AbortController();
     const timeout = setTimeout(() => requestController.abort(), 10000);
-
     let signal = requestController.signal;
+
     if (navigationAbortController) {
       if (typeof AbortSignal !== 'undefined' && AbortSignal.any) {
         signal = AbortSignal.any([requestController.signal, navigationAbortController.signal]);
@@ -100,9 +93,7 @@
     try {
       const response = await fetch(`${window.location.origin}/api${endpoint}`, { ...options, signal });
       const contentType = response.headers.get('content-type') || '';
-      const result = contentType.includes('application/json')
-        ? await response.json()
-        : { success: false, message: await response.text() };
+      const result = contentType.includes('application/json') ? await response.json() : { success: false, message: await response.text() };
 
       if (!response.ok) {
         const error = new Error(result.message || `Request failed (${response.status}).`);
@@ -128,10 +119,8 @@
           window.showAuth?.();
           error.sessionExpired = true;
         }
-
         throw error;
       }
-
       return result;
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -155,11 +144,9 @@
     const menu = document.getElementById('sidebar-menu');
     if (!menu) return;
     const items = Array.from(menu.querySelectorAll(':scope > li'));
-    items.forEach(item => item.classList.remove('active'));
-
     const role = (window.currentUser || {}).role;
     const index = (MENU_VIEWS[role] || []).indexOf(viewName);
-    if (index >= 0 && items[index]) items[index].classList.add('active');
+    items.forEach((item, itemIndex) => item.classList.toggle('active', itemIndex === index));
   }
 
   function decorateBackButton() {
@@ -170,16 +157,26 @@
 
     header.classList.add('page-header-with-back');
     let back = header.querySelector('.page-back-button');
+
+    if (back && back.dataset.stabilityBound === 'true') {
+      back.textContent = '←  Back';
+      return;
+    }
+
+    if (back) back.replaceWith(back.cloneNode(true));
+    back = header.querySelector('.page-back-button');
     if (!back) {
       back = document.createElement('button');
-      back.type = 'button';
-      back.className = 'page-back-button';
-      back.addEventListener('click', navigateBack);
       header.insertBefore(back, header.firstChild);
     }
+
+    back.type = 'button';
+    back.className = 'page-back-button';
     back.textContent = '←  Back';
     back.setAttribute('aria-label', 'Go back');
     back.title = 'Go back';
+    back.dataset.stabilityBound = 'true';
+    back.addEventListener('click', navigateBack);
   }
 
   function rememberHistory(nextView) {
@@ -207,17 +204,11 @@
 
         const content = contentArea();
         if (content) {
-          content.innerHTML = `
-            <div class="view-loading-state" aria-live="polite">
-              <div class="spinner" aria-hidden="true"></div>
-              <div class="view-loading-title">Loading page...</div>
-              <div class="view-loading-subtitle">Please wait a moment.</div>
-            </div>`;
+          content.innerHTML = `<div class="view-loading-state" aria-live="polite"><div class="spinner" aria-hidden="true"></div><div class="view-loading-title">Loading page...</div><div class="view-loading-subtitle">Please wait a moment.</div></div>`;
         }
 
         try {
           if (typeof baseLoadView !== 'function') throw new Error('Dashboard navigation is not initialized correctly.');
-
           await Promise.race([
             Promise.resolve(baseLoadView(target)),
             new Promise((_, reject) => setTimeout(() => {
@@ -230,18 +221,8 @@
         } catch (error) {
           if (controller.signal.aborted && requestedView && requestedView !== target) continue;
           if (error?.code !== 'NAVIGATION_CANCELLED') console.error(`View '${target}' failed:`, error);
-
-          if (runId === navigationId && content) {
-            content.innerHTML = `
-              <div class="card view-load-error">
-                <div class="view-load-error-icon">⚠️</div>
-                <h3>Unable to load this page</h3>
-                <p>${error?.message || 'Something went wrong while loading this section.'}</p>
-                <div class="view-load-error-actions">
-                  <button type="button" class="btn btn-primary" data-retry-view="${target}">Try Again</button>
-                  <button type="button" class="btn btn-secondary" data-go-home>Back to Dashboard</button>
-                </div>
-              </div>`;
+          if (runId === navigationId && content && !requestedView) {
+            content.innerHTML = `<div class="card view-load-error"><div class="view-load-error-icon">⚠️</div><h3>Unable to load this page</h3><p>${error?.message || 'Something went wrong while loading this section.'}</p><div class="view-load-error-actions"><button type="button" class="btn btn-primary" data-retry-view="${target}">Try Again</button><button type="button" class="btn btn-secondary" data-go-home>Back to Dashboard</button></div></div>`;
           }
         } finally {
           if (navigationAbortController === controller) navigationAbortController = null;
@@ -269,10 +250,7 @@
     requestedView = viewName;
     navigationId += 1;
     navigationAbortController?.abort();
-
-    if (!navigationPromise) {
-      navigationPromise = runLatestNavigation();
-    }
+    if (!navigationPromise) navigationPromise = runLatestNavigation();
     return navigationPromise;
   }
 
@@ -281,7 +259,7 @@
     navigateTo(viewName || roleHome());
   }
 
-  async function navigateBack() {
+  function navigateBack() {
     const target = explicitBackTarget || viewHistory.pop() || roleHome();
     explicitBackTarget = null;
     navigateTo(target);
@@ -293,12 +271,9 @@
 
   function handleRuntimeActions(event) {
     const retry = event.target.closest('[data-retry-view]');
-    if (retry) {
-      navigateTo(retry.dataset.retryView);
-      return;
-    }
+    if (retry) return navigateTo(retry.dataset.retryView);
     const home = event.target.closest('[data-go-home]');
-    if (home) navigateTo(roleHome());
+    if (home) return navigateTo(roleHome());
   }
 
   function stableShowDashboard() {
@@ -306,7 +281,6 @@
     const token = localStorage.getItem('token');
     let user = null;
     try { user = rawUser ? normalizeUser(JSON.parse(rawUser)) : null; } catch { user = null; }
-
     if (!user || !token) {
       clearLoadingOverlay();
       return window.showAuth?.();
@@ -387,8 +361,6 @@
 
   function initializeStability() {
     baseLoadView = window.loadView;
-    baseGoBackInApp = window.goBackInApp;
-
     window.apiCall = apiCallSafe;
     window.showLoading = showLoadingSafe;
     window.hideLoading = hideLoadingSafe;
@@ -417,34 +389,38 @@
     clearLoadingOverlay();
   }
 
+  const initializeMenuObserver = () => {
+    const menu = document.getElementById('sidebar-menu');
+    if (!menu) return;
+    let syncing = false;
+    const observer = new MutationObserver(() => {
+      if (syncing) return;
+      const target = requestedView || currentView;
+      if (!target) return;
+      syncing = true;
+      setActiveSidebar(target);
+      syncing = false;
+    });
+    observer.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  };
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeStability, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeStability();
+      initializeMenuObserver();
+    }, { once: true });
   } else {
     initializeStability();
+    initializeMenuObserver();
   }
-
-  const activeObserver = new MutationObserver(() => {
-    const target = requestedView || currentView;
-    if (target) setActiveSidebar(target);
-    decorateBackButton();
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const menu = document.getElementById('sidebar-menu');
-    const content = document.getElementById('content-area');
-    if (menu) activeObserver.observe(menu, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    if (content) activeObserver.observe(content, { childList: true, subtree: true });
-  }, { once: true });
 
   window.addEventListener('error', event => {
     console.error('Unhandled frontend error:', event.error || event.message);
     clearLoadingOverlay();
   });
-
   window.addEventListener('unhandledrejection', event => {
     console.error('Unhandled promise rejection:', event.reason);
     if (event.reason?.code !== 'NAVIGATION_CANCELLED') clearLoadingOverlay();
   });
-
   window.addEventListener('pageshow', clearLoadingOverlay);
 })();
