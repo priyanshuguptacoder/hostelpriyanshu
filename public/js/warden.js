@@ -315,15 +315,18 @@ async function viewTodayAttendance() {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${result.attendance.map(a => `
+                                ${result.attendance.map(a => {
+                                    const student = a.studentId || {};
+                                    return `
                                     <tr>
-                                        <td>${a.studentId.name}</td>
-                                        <td>${a.studentId.collegeId}</td>
-                                        <td>${a.studentId.roomNumber}</td>
+                                        <td>${student.name || 'Deleted / Unknown'}</td>
+                                        <td>${student.collegeId || 'N/A'}</td>
+                                        <td>${student.roomNumber || 'N/A'}</td>
                                         <td><span class="badge badge-${a.status === 'present' ? 'success' : 'danger'}">${a.status}</span></td>
                                         <td>${formatDateTime(a.markedAt)}</td>
                                     </tr>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -756,9 +759,9 @@ async function manageComplaint(complaintId) {
                         <button class="modal-close" onclick="closeModal('manageComplaintModal')">&times;</button>
                     </div>
                     <div>
-                        <p><strong>Student:</strong> ${complaint.studentId.name} (${complaint.studentId.collegeId})</p>
-                        <p><strong>Room:</strong> ${complaint.studentId.roomNumber}</p>
-                        <p><strong>Phone:</strong> ${complaint.studentId.phoneNumber || 'N/A'}</p>
+                        <p><strong>Student:</strong> ${complaint.studentId?.name || 'Deleted / Unknown'} (${complaint.studentId?.collegeId || 'N/A'})</p>
+                        <p><strong>Room:</strong> ${complaint.studentId?.roomNumber || 'N/A'}</p>
+                        <p><strong>Phone:</strong> ${complaint.studentId?.phoneNumber || 'N/A'}</p>
                         <p><strong>Category:</strong> <span class="badge badge-info">${complaint.category}</span></p>
                         <p><strong>Priority:</strong> <span class="badge badge-warning">${complaint.priority}</span></p>
                         <p><strong>Current Status:</strong> <span class="badge badge-${complaint.status === 'resolved' ? 'success' : 'warning'}">${complaint.status.replace('_', ' ')}</span></p>

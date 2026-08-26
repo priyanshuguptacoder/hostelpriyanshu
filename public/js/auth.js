@@ -134,15 +134,18 @@ function handleGoogleLogin() {
                 return;
             }
 
+            let oauthTimeout;
+
             // Step 3: Listen for message from google-callback.html
             googleAuthListener = async function(event) {
                 if (event.origin !== window.location.origin) return;
 
+                clearTimeout(oauthTimeout);
                 window.removeEventListener('message', googleAuthListener);
                 googleAuthListener = null;
 
                 if (googleAuthPopup && !googleAuthPopup.closed) {
-                    googleAuthPopup.close();
+                    try { googleAuthPopup.close(); } catch (e) {}
                 }
 
                 if (event.data.type === 'GOOGLE_AUTH_ERROR') {
@@ -167,24 +170,30 @@ function handleGoogleLogin() {
                             showAlert('Google sign-in failed. Please try again.', 'error');
                         }
                     } catch (err) {
-                        hideLoading(true);
-                        showAlert(err.message || 'Google sign-in failed.', 'error');
+                        if (err.requiresVerification) {
+                            verificationEmail = err.email;
+                            hideLoading(true);
+                            showOtpVerification(err.email, true);
+                        } else {
+                            hideLoading(true);
+                            showAlert(err.message || 'Google sign-in failed.', 'error');
+                        }
                     }
                 }
             };
 
             window.addEventListener('message', googleAuthListener);
 
-            // Fallback: detect if popup closed without sending message
-            const popupChecker = setInterval(() => {
-                if (googleAuthPopup && googleAuthPopup.closed) {
-                    clearInterval(popupChecker);
-                    if (googleAuthListener) {
-                        window.removeEventListener('message', googleAuthListener);
-                        googleAuthListener = null;
-                    }
+            // Timeout after 5 minutes instead of endlessly polling popup.closed
+            oauthTimeout = setTimeout(() => {
+                if (googleAuthListener) {
+                    window.removeEventListener('message', googleAuthListener);
+                    googleAuthListener = null;
                 }
-            }, 500);
+                if (googleAuthPopup && !googleAuthPopup.closed) {
+                    try { googleAuthPopup.close(); } catch(e) {}
+                }
+            }, 5 * 60 * 1000);
         })
         .catch(err => {
             showAlert('Could not initiate Google sign-in. Please try again.', 'error');
