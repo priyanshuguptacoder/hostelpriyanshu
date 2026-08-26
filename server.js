@@ -111,13 +111,20 @@ app.get('/google-callback.html', (req, res) => {
 function sendIndex(req, res) {
   try {
     let html = fs.readFileSync(indexPath, 'utf8');
-    const assetBlock = `
-    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=1">
+
+    if (!html.includes('/css/uiFinalFixes.css')) {
+      html = html.replace(
+        '</head>',
+        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=1">\n</head>'
+      );
+    }
+
+    const finalScripts = `
     <script src="/js/securityUiFixes.js?v=3"></script>
     <script src="/js/finalUiBehaviorFixes.js?v=1"></script>`;
 
-    if (!html.includes('/css/uiFinalFixes.css')) {
-      html = html.replace('</head>', `${assetBlock}\n</head>`);
+    if (!html.includes('/js/finalUiBehaviorFixes.js')) {
+      html = html.replace('</body>', `${finalScripts}\n</body>`);
     }
 
     res.type('html').send(html);
