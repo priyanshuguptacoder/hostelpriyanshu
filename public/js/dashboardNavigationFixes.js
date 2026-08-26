@@ -1,5 +1,7 @@
 (() => {
   const originalLoadView = window.loadView;
+  const originalViewTodayAttendance = window.viewTodayAttendance;
+  const originalShowNewComplaintForm = window.showNewComplaintForm;
   const viewHistory = [];
   let currentView = null;
   let explicitBackTarget = null;
@@ -66,13 +68,23 @@
   window.goBackInApp = goBackInApp;
   window.setExplicitBackTarget = setExplicitBackTarget;
 
+  if (typeof originalViewTodayAttendance === 'function') {
+    window.viewTodayAttendance = async (...args) => {
+      setExplicitBackTarget('markAttendance');
+      return originalViewTodayAttendance(...args);
+    };
+  }
+
+  if (typeof originalShowNewComplaintForm === 'function') {
+    window.showNewComplaintForm = (...args) => {
+      setExplicitBackTarget('myComplaints');
+      return originalShowNewComplaintForm(...args);
+    };
+  }
+
   const content = document.getElementById('content-area');
   if (content) {
     const observer = new MutationObserver(() => decorateCurrentView());
     observer.observe(content, { childList: true, subtree: true });
   }
-
-  window.addEventListener('beforeunload', () => {
-    viewHistory.length = 0;
-  });
 })();
