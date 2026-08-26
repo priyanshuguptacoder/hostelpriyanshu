@@ -1,16 +1,20 @@
 const axios = require('axios');
 
-const sendEmail = async (options) => {
-  const apiKey = process.env.BREVO_API_KEY;
-  const fromEmail = process.env.BREVO_FROM_EMAIL;
-  const fromName = process.env.BREVO_FROM_NAME || 'Priyanshu Gupta - NITJ Hostel Management';
+const sendEmail = async (options = {}) => {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  const fromEmail = process.env.BREVO_FROM_EMAIL?.trim();
+  const fromName = process.env.BREVO_FROM_NAME?.trim() || 'Hostel Management System';
 
   if (!apiKey) {
-    throw new Error('Brevo API key not configured. Please add BREVO_API_KEY to environment variables.');
+    throw new Error('Email service is not configured: BREVO_API_KEY is missing.');
   }
 
   if (!fromEmail) {
-    throw new Error('Brevo from email not configured. Please add BREVO_FROM_EMAIL to environment variables.');
+    throw new Error('Email service is not configured: BREVO_FROM_EMAIL is missing.');
+  }
+
+  if (!options.email || !options.subject || !options.html) {
+    throw new Error('Email service received an incomplete message.');
   }
 
   try {
@@ -21,9 +25,16 @@ const sendEmail = async (options) => {
           email: fromEmail,
           name: fromName
         },
-        to: [{ email: options.email }],
-        subject: options.subject,
-        htmlContent: options.html
+        to: [{ email: String(options.email).trim().toLowerCase() }],
+        subject: String(options.subject).trim(),
+        htmlContent: String(options.html),
+        ...(options.text ? { textContent: String(options.text) } : {}),
+        ...(process.env.BREVO_REPLY_TO_EMAIL ? {
+          replyTo: {
+            email: process.env.BREVO_REPLY_TO_EMAIL.trim(),
+            name: fromName
+          }
+        } : {})
       },
       {
         headers: {
@@ -31,16 +42,27 @@ const sendEmail = async (options) => {
           'api-key': apiKey,
           'content-type': 'application/json'
         },
-        timeout: 15000
+        timeout: 20000,
+        validateStatus: status => status >= 200 && status < 300
       }
     );
 
-    console.log('Brevo email sent successfully:', response.data?.messageId || 'accepted');
+    console.log('[email] Brevo accepted message:', response.data?.messageId || 'accepted');
     return response.data;
   } catch (error) {
     const details = error.response?.data;
-    console.error('Brevo email sending error:', details || error.message);
-    throw new Error(details?.message || details?.code || error.message || 'Failed to send email');
+    const providerMessage = details?.message || details?.code;
+    console.error('[email] Brevo delivery failed:', {
+      status: error.response?.status,
+      code: providerMessage,
+      message: error.message
+    });
+
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Email provider timed out. Please try again in a moment.');
+    }
+
+    throw new Error(providerMessage || error.message || 'Failed to send email.');
   }
 };
 
