@@ -1,10 +1,3 @@
-/**
- * Hostel Management System
- *
- * @author Priyanshu
- * @version 2.4
- */
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -63,15 +56,14 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-// Authentication fixes are deliberately mounted before legacy handlers.
 app.use('/api/auth', require('./routes/googleAuthFix'));
 app.use('/api/auth', require('./routes/emailVerificationFix'));
+app.use('/api/auth', require('./routes/otpVerificationFix'));
 app.use('/api/auth', require('./routes/authBehaviorFixes'));
 app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/account', require('./routes/account'));
 
-// Small focused route modules are mounted before broad feature routes.
 app.use('/api/attendance', require('./routes/attendanceSearchFix'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/attendance-approval', require('./routes/attendanceApproval'));
@@ -109,7 +101,13 @@ app.get('/google-callback.html', (req, res) => {
 
 function sendIndex(req, res) {
   try {
-    const html = fs.readFileSync(indexPath, 'utf8');
+    let html = fs.readFileSync(indexPath, 'utf8');
+    if (!html.includes('securityUiFixes.js')) {
+      html = html.replace(
+        '</body>',
+        '    <script src="/js/securityUiFixes.js?v=2"></script>\n</body>'
+      );
+    }
     res.type('html').send(html);
   } catch (error) {
     console.error('Failed to serve index:', error);
