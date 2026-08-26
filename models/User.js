@@ -2,30 +2,30 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
+  name: {
+    type: String,
     required: [true, 'Name is required'],
     trim: true
   },
-  collegeId: { 
-    type: String, 
+  collegeId: {
+    type: String,
     required: [true, 'College ID is required'],
     unique: true,
     trim: true,
     uppercase: true
   },
-  email: { 
-    type: String, 
+  email: {
+    type: String,
     required: [true, 'Email is required'],
     unique: true,
     lowercase: true,
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
   },
-  password: { 
-    type: String, 
+  password: {
+    type: String,
     required: function() {
-      return !this.googleId; // Password not required for Google OAuth users
+      return !this.googleId;
     },
     minlength: [6, 'Password must be at least 6 characters']
   },
@@ -37,8 +37,8 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String
   },
-  role: { 
-    type: String, 
+  role: {
+    type: String,
     enum: ['student', 'warden', 'admin'],
     default: 'student'
   },
@@ -46,7 +46,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: function() {
-      // Admin and students are auto-approved, wardens need approval
       return (this.role === 'admin' || this.role === 'student') ? 'approved' : 'pending';
     }
   },
@@ -60,9 +59,11 @@ const userSchema = new mongoose.Schema({
   rejectionReason: {
     type: String
   },
-  roomNumber: { 
+  roomNumber: {
     type: String,
-    required: function() { return this.role === 'student' && !this.googleId; }
+    required: function() {
+      return this.role === 'student' && !this.googleId;
+    }
   },
   hostelBlock: String,
   hostelId: {
@@ -76,9 +77,9 @@ const userSchema = new mongoose.Schema({
   department: String,
   year: Number,
   phoneNumber: String,
-  isActive: { 
-    type: Boolean, 
-    default: true 
+  isActive: {
+    type: Boolean,
+    default: true
   },
   emailVerified: {
     type: Boolean,
@@ -90,15 +91,22 @@ const userSchema = new mongoose.Schema({
   emailVerificationOTPExpires: {
     type: Date
   },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  passwordResetToken: {
+    type: String,
+    default: undefined
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: undefined
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true
 });
 
-// Index for faster queries
 userSchema.index({ collegeId: 1 });
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
@@ -106,10 +114,9 @@ userSchema.index({ approvalStatus: 1 });
 userSchema.index({ hostelId: 1 });
 userSchema.index({ assignedWarden: 1 });
 
-// Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -119,36 +126,36 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to generate email verification OTP
 userSchema.methods.generateEmailOTP = function() {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
   this.emailVerificationOTP = otp;
-  this.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
   return otp;
 };
 
-// Method to verify email OTP
 userSchema.methods.verifyEmailOTP = function(otp) {
   if (!this.emailVerificationOTP || !this.emailVerificationOTPExpires) {
     return false;
   }
-  
+
   if (Date.now() > this.emailVerificationOTPExpires) {
-    return false; // OTP expired
+    return false;
   }
-  
+
   return this.emailVerificationOTP === otp;
 };
 
-// Remove password from JSON response
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
+  delete obj.emailVerificationOTP;
+  delete obj.emailVerificationOTPExpires;
   return obj;
 };
 
