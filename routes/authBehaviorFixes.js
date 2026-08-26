@@ -51,7 +51,7 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne(query).select('+password');
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'No account found with that email or college ID. Please check your details or create an account.' });
+      return res.status(403).json({ success: false, message: 'No account found with that email or college ID. Please check your details or create an account.' });
     }
 
     if (!user.isActive) {
@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user.password || !(await user.comparePassword(password))) {
-      return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
+      return res.status(403).json({ success: false, message: 'Incorrect password. Please try again.' });
     }
 
     if (!user.emailVerified) {
@@ -99,6 +99,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Legacy Google handler retained for compatibility. The dedicated googleAuthFix route is mounted first.
 router.post('/google/callback', async (req, res) => {
   try {
     const { code } = req.body;
@@ -131,45 +132,10 @@ router.post('/google/callback', async (req, res) => {
     }
 
     const email = googleUser.email.toLowerCase();
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email });
 
     if (!user) {
-      const emailPrefix = email.split('@')[0];
-      const collegeId = emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10) + Date.now().toString().slice(-4);
-
-      user = new User({
-        name: googleUser.name || emailPrefix,
-        email,
-        collegeId,
-        password: `google-oauth-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-        role: 'student',
-        googleId: googleUser.id,
-        avatar: googleUser.picture,
-        isActive: true,
-        approvalStatus: 'approved',
-        emailVerified: false
-      });
-
-      const otp = user.generateEmailOTP();
-      try {
-        await sendEmail({
-          email: user.email,
-          subject: 'Verify Your Hostel Management Account - Google Signup OTP',
-          html: otpHtml(user.name, otp),
-          text: `Your Hostel Management verification OTP is ${otp}. It expires in 10 minutes.`
-        });
-        await user.save();
-      } catch (emailError) {
-        console.error('Google signup OTP email error:', emailError);
-        return res.status(502).json({ success: false, message: `Google signup could not send the verification email: ${emailError.message}` });
-      }
-
-      return res.json({
-        success: true,
-        message: 'Google signup successful. Verify your email with the OTP sent to you.',
-        requiresVerification: true,
-        user: publicUser(user)
-      });
+      return res.status(404).json({ success: false, message: 'No account found with this Google email.' });
     }
 
     if (!user.isActive) {
