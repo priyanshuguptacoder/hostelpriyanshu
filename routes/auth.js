@@ -12,72 +12,50 @@ router.post('/register', async (req, res) => {
   try {
     const { name, collegeId, email, password, role, roomNumber, hostelBlock, department, year, phoneNumber } = req.body;
 
-    // Validate required fields
     if (!name || !collegeId || !email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide name, college ID, email, and password' 
-      });
-    }
-
-    // Validate email domain - must be @nitj.ac.in or @hostel.com (for test accounts)
-    const isNitjEmail = email.toLowerCase().endsWith('@nitj.ac.in');
-    const isTestAccount = email.toLowerCase().endsWith('@hostel.com');
-    
-    if (!isNitjEmail && !isTestAccount) {
       return res.status(400).json({
         success: false,
-        message: 'Only NITJ college email addresses (@nitj.ac.in) are allowed'
+        message: 'Please provide name, college ID, email, and password'
       });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { collegeId }] 
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { collegeId }]
     });
 
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: existingUser.email === email 
-          ? 'Email already registered' 
-          : 'College ID already registered' 
+      return res.status(400).json({
+        success: false,
+        message: existingUser.email === email.toLowerCase()
+          ? 'Email already registered'
+          : 'College ID already registered'
       });
     }
 
-    // Validate student must have room number
     if (role === 'student' && !roomNumber) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Room number is required for students' 
+      return res.status(400).json({
+        success: false,
+        message: 'Room number is required for students'
       });
     }
 
-    // Determine approval status based on role
     let approvalStatus = 'pending';
-    let message = 'Registration successful. ';
-    
+
     if (role === 'admin') {
-      // Admins cannot self-register
       return res.status(403).json({
         success: false,
         message: 'Admin accounts can only be created by existing admins'
       });
-    } else if (role === 'warden') {
-      message += 'Your account is pending admin approval. You will be notified once approved.';
-    } else if (role === 'student') {
-      approvalStatus = 'approved'; // Students are auto-approved
-      message += 'Please verify your college email to complete registration.';
-    } else {
-      // mess_staff, maintenance_staff
-      message += 'Your account is pending admin approval. You will be notified once approved.';
     }
 
-    // Create user (email not verified yet)
+    if (role === 'student') {
+      approvalStatus = 'approved';
+    }
+
     const user = await User.create({
       name,
       collegeId,
-      email,
+      email: email.toLowerCase(),
       password,
       role: role || 'student',
       approvalStatus,
@@ -86,116 +64,43 @@ router.post('/register', async (req, res) => {
       department,
       year,
       phoneNumber,
-      emailVerified: false // Email not verified yet
+      emailVerified: false
     });
 
-    // Generate and send OTP
     const otp = user.generateEmailOTP();
     await user.save();
 
-    // Send OTP email
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Verify Your NITJ Hostel Account - OTP Inside',
+        subject: 'Verify Your Hostel Management Account - OTP',
         html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f4;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
-              <tr>
-                <td align="center">
-                  <table width="600" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <tr>
-                      <td style="padding: 40px 40px 30px 40px; text-align: center; background: white;">
-                        <h1 style="margin: 0; color: #667eea; font-size: 28px; font-weight: 700;">From Priyanshu Gupta NITJ Hostel Management</h1>
-                        <p style="margin: 10px 0 0 0; color: #999; font-size: 14px;">National Institute of Technology, Jalandhar</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 40px; background: white;">
-                        <h2 style="margin: 0 0 20px 0; color: #333; font-size: 24px; font-weight: 600;">Welcome, ${user.name}! 👋</h2>
-                        <p style="margin: 0 0 15px 0; color: #666; font-size: 16px; line-height: 1.6;">Thank you for registering with the NITJ Hostel Management System.</p>
-                        <p style="margin: 0 0 25px 0; color: #666; font-size: 16px; line-height: 1.6;">To complete your registration and verify your college email address, please use the One-Time Password (OTP) below:</p>
-                        
-                        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                          <tr>
-                            <td align="center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px;">
-                              <p style="margin: 0 0 10px 0; color: white; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Your OTP Code</p>
-                              <h1 style="margin: 0; color: white; font-size: 48px; font-weight: 700; letter-spacing: 12px; font-family: 'Courier New', monospace;">${otp}</h1>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                          <tr>
-                            <td style="padding: 15px;">
-                              <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
-                                <strong>⏱️ Important:</strong> This OTP is valid for <strong>10 minutes</strong> only. Please enter it on the verification page to activate your account.
-                              </p>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        <p style="margin: 25px 0 15px 0; color: #666; font-size: 14px; line-height: 1.6;">After verification, you'll be able to:</p>
-                        <ul style="margin: 0 0 25px 0; padding-left: 20px; color: #666; font-size: 14px; line-height: 1.8;">
-                          <li>Access your hostel dashboard</li>
-                          <li>View mess bills and attendance</li>
-                          <li>Submit complaints and requests</li>
-                          <li>Stay updated with announcements</li>
-                        </ul>
-                        
-                        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0; background: #f8f9fa; border-radius: 8px;">
-                          <tr>
-                            <td style="padding: 15px;">
-                              <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.6;">
-                                <strong>🔒 Security Note:</strong> If you didn't create an account with NITJ Hostel Management, please ignore this email. Your email address will not be used without verification.
-                              </p>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding: 30px 40px; background: #f8f9fa; border-top: 1px solid #e9ecef;">
-                        <p style="margin: 0 0 10px 0; color: #666; font-size: 13px; line-height: 1.6; text-align: center;">
-                          Need help? Contact us at <a href="mailto:support@nitj.ac.in" style="color: #667eea; text-decoration: none;">support@nitj.ac.in</a>
-                        </p>
-                        <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
-                          © 2026 NITJ Hostel Management System. All rights reserved.<br>
-                          Created By Priyanshu Gupta<br>
-                          National Institute of Technology, Jalandhar, Punjab, India
-                        </p>
-                      </td>
-                    </tr>
-                  </table>
-                  <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-                    <tr>
-                      <td style="text-align: center; color: #999; font-size: 11px; line-height: 1.6;">
-                        This is an automated message from NITJ Hostel Management System.<br>
-                        Please do not reply to this email.
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-          </html>
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
+            <div style="background:white;padding:30px;border-radius:12px;">
+              <h2 style="color:#667eea;text-align:center;">Hostel Management</h2>
+              <h3>Welcome ${user.name}!</h3>
+              <p>Use the OTP below to verify your email address.</p>
+              <div style="background:#667eea;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
+                <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your OTP</div>
+                <div style="font-size:44px;font-weight:700;letter-spacing:10px;margin-top:8px;">${otp}</div>
+              </div>
+              <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p>If you did not create this account, you can ignore this email.</p>
+            </div>
+          </div>
         `
       });
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      // Don't fail registration if email fails, user can request OTP again
+      console.error('Registration OTP email error:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Account created, but OTP email could not be sent. Please try again.'
+      });
     }
 
-    res.status(201).json({ 
-      success: true, 
-      message: 'Registration successful! An OTP has been sent to your college email. Please verify to login. If E-Mail not received check spam folder.',
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful! An OTP has been sent to your email.',
       requiresVerification: true,
       user: {
         id: user._id,
@@ -209,10 +114,10 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Registration failed',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -224,78 +129,53 @@ router.post('/login', async (req, res) => {
   try {
     const { email, collegeId, password } = req.body;
 
-    // Validate input
     if ((!email && !collegeId) || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide email/college ID and password' 
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email/college ID and password'
       });
     }
 
-    // Validate email domain if email is provided
-    if (email) {
-      const isNitjEmail = email.toLowerCase().endsWith('@nitj.ac.in');
-      const isTestAccount = email.toLowerCase().endsWith('@hostel.com');
-      
-      if (!isNitjEmail && !isTestAccount) {
-        return res.status(400).json({
-          success: false,
-          message: 'Only NITJ college email addresses (@nitj.ac.in) are allowed'
-        });
-      }
-    }
-
-    // Find user by email or collegeId
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       $or: [
-        { email: email?.toLowerCase() }, 
+        { email: email?.toLowerCase() },
         { collegeId: collegeId?.toUpperCase() }
-      ] 
+      ]
     }).select('+password');
 
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
       });
     }
 
-    // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Your account has been deactivated. Please contact admin.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact admin.'
       });
     }
 
-    // Test accounts that bypass email verification
     const testAccounts = [
       'adminpriyanshu@hostel.com',
       'wardenpriyanshu@hostel.com',
       'studentpriyanshu@hostel.com'
     ];
 
-    // Check if email is verified (skip for test accounts)
     if (!user.emailVerified && !testAccounts.includes(user.email.toLowerCase())) {
       return res.status(403).json({
         success: false,
-        message: 'Please verify your email before logging in. Check your college email for the OTP.',
+        message: 'Please verify your email before logging in.',
         requiresVerification: true,
         email: user.email
       });
     }
 
-    // Check approval status
     if (user.approvalStatus === 'pending') {
-      let message = 'Your account is pending approval. ';
-      if (user.role === 'warden') {
-        message += 'Please wait for admin approval.';
-      } else {
-        message += 'Please wait for admin approval.';
-      }
       return res.status(403).json({
         success: false,
-        message,
+        message: 'Your account is pending approval. Please wait for admin approval.',
         approvalStatus: 'pending'
       });
     }
@@ -308,16 +188,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check password
     const isMatch = await user.comparePassword(password);
+
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
       });
     }
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.json({
@@ -338,21 +217,19 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Login failed',
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current logged in user
-// @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
     res.json({
       success: true,
       user: {
@@ -369,22 +246,20 @@ router.get('/me', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Error fetching user data',
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // @route   PUT /api/auth/update-profile
-// @desc    Update user profile
-// @access  Private
 router.put('/update-profile', protect, async (req, res) => {
   try {
     const { name, phoneNumber, roomNumber } = req.body;
-    
     const updateFields = {};
+
     if (name) updateFields.name = name;
     if (phoneNumber) updateFields.phoneNumber = phoneNumber;
     if (roomNumber && req.user.role === 'student') updateFields.roomNumber = roomNumber;
@@ -401,40 +276,36 @@ router.put('/update-profile', protect, async (req, res) => {
       user
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Error updating profile',
-      error: error.message 
+      error: error.message
     });
   }
 });
 
 // @route   PUT /api/auth/change-password
-// @desc    Change password
-// @access  Private
 router.put('/change-password', protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide current and new password' 
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide current and new password'
       });
     }
 
     const user = await User.findById(req.user._id).select('+password');
-    
-    // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
+
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Current password is incorrect' 
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -443,199 +314,133 @@ router.put('/change-password', protect, async (req, res) => {
       message: 'Password changed successfully'
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Error changing password',
-      error: error.message 
+      error: error.message
     });
   }
 });
 
-module.exports = router;
-
-
 // @route   GET /api/auth/google
-// @desc    Google OAuth login
-// @access  Public
 router.get('/google', (req, res) => {
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&response_type=code&scope=profile email`;
-    res.json({ success: true, url: googleAuthUrl });
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID)}&redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI)}&response_type=code&scope=profile%20email`;
+  res.json({ success: true, url: googleAuthUrl });
 });
 
 // @route   POST /api/auth/google/callback
-// @desc    Google OAuth callback
-// @access  Public
 router.post('/google/callback', async (req, res) => {
-    try {
-        const { code } = req.body;
+  try {
+    const { code } = req.body;
 
-        if (!code) {
-            return res.status(400).json({
-                success: false,
-                message: 'Authorization code is required'
-            });
-        }
-
-        // Exchange code for tokens
-        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                code,
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                redirect_uri: process.env.GOOGLE_REDIRECT_URI,
-                grant_type: 'authorization_code',
-            }),
-        });
-
-        const tokenData = await tokenResponse.json();
-
-        if (!tokenData.access_token) {
-            return res.status(400).json({
-                success: false,
-                message: 'Failed to get access token'
-            });
-        }
-
-        // Get user info from Google
-        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-            },
-        });
-
-        const googleUser = await userInfoResponse.json();
-
-        // Validate email domain - must be @nitj.ac.in
-        if (!googleUser.email.toLowerCase().endsWith('@nitj.ac.in')) {
-            return res.status(403).json({
-                success: false,
-                message: 'Only NITJ college email addresses (@nitj.ac.in) are allowed. Please use your college email.'
-            });
-        }
-
-        // Check if user exists
-        let user = await User.findOne({ email: googleUser.email });
-
-        if (!user) {
-            // Create new user
-            const emailPrefix = googleUser.email.split('@')[0];
-            const collegeId = emailPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 10) + Date.now().toString().slice(-4);
-
-            user = await User.create({
-                name: googleUser.name,
-                email: googleUser.email,
-                collegeId: collegeId,
-                password: 'google-oauth-' + Math.random().toString(36).substring(7),
-                role: 'student',
-                googleId: googleUser.id,
-                avatar: googleUser.picture,
-                isActive: true,
-                emailVerified: false // Require email verification even for Google OAuth
-            });
-
-            // Generate and send OTP
-            const otp = user.generateEmailOTP();
-            await user.save();
-
-            // Send OTP email
-            try {
-                await sendEmail({
-                    email: user.email,
-                    subject: 'NITJ Hostel Management - Verify Your Email',
-                    html: `
-                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px;">
-                        <div style="background: white; padding: 30px; border-radius: 8px;">
-                          <h2 style="color: #667eea; text-align: center; margin-bottom: 20px;">From Priyanshu Gupta NITJ Hostel Management</h2>
-                          <h3 style="color: #333; margin-bottom: 15px;">Welcome ${user.name}!</h3>
-                          <p style="color: #666; font-size: 16px; line-height: 1.6;">Thank you for signing up with Google.</p>
-                          <p style="color: #666; font-size: 16px; line-height: 1.6;">Please verify your college email address using the OTP below:</p>
-                          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                            <h1 style="color: #667eea; font-size: 36px; letter-spacing: 8px; margin: 0;">${otp}</h1>
-                          </div>
-                          <p style="color: #666; font-size: 14px; line-height: 1.6;"><strong>This OTP is valid for 10 minutes.</strong></p>
-                          <p style="color: #666; font-size: 14px; line-height: 1.6;">After verification, you can access the hostel management system.</p>
-                          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                          <p style="color: #999; font-size: 12px; text-align: center;">© 2026 NITJ Hostel Management System. All rights reserved By Priyanshu.</p>
-                        </div>
-                      </div>
-                    `
-                });
-            } catch (emailError) {
-                console.error('Email sending error:', emailError);
-            }
-
-            return res.json({
-                success: true,
-                message: 'Account created! Please verify your email with the OTP sent to your college email.',
-                requiresVerification: true,
-                user: {
-                    _id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    collegeId: user.collegeId,
-                    role: user.role,
-                    emailVerified: user.emailVerified
-                }
-            });
-        } else if (!user.googleId) {
-            // Link Google account to existing user
-            user.googleId = googleUser.id;
-            user.avatar = googleUser.picture;
-            await user.save();
-        }
-
-        // Check if email is verified
-        if (!user.emailVerified) {
-            return res.status(403).json({
-                success: false,
-                message: 'Please verify your email before logging in. Check your college email for the OTP.',
-                requiresVerification: true,
-                email: user.email
-            });
-        }
-
-        // Generate JWT token
-        const token = generateToken(user._id);
-
-        res.json({
-            success: true,
-            message: 'Google login successful',
-            token,
-            user: {
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                collegeId: user.collegeId,
-                role: user.role,
-                avatar: user.avatar,
-                roomNumber: user.roomNumber,
-                hostelBlock: user.hostelBlock,
-                department: user.department,
-                year: user.year,
-                phoneNumber: user.phoneNumber
-            }
-        });
-    } catch (error) {
-        console.error('Google OAuth Error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Google authentication failed',
-            error: error.message
-        });
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization code is required'
+      });
     }
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      return res.status(400).json({
+        success: false,
+        message: tokenData.error_description || 'Failed to get access token'
+      });
+    }
+
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
+    });
+
+    const googleUser = await userInfoResponse.json();
+
+    if (!userInfoResponse.ok || !googleUser.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to get Google account information'
+      });
+    }
+
+    const email = googleUser.email.toLowerCase();
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const emailPrefix = email.split('@')[0];
+      const collegeId = emailPrefix
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 10) + Date.now().toString().slice(-4);
+
+      user = await User.create({
+        name: googleUser.name || emailPrefix,
+        email,
+        collegeId,
+        password: 'google-oauth-' + Math.random().toString(36).substring(7),
+        role: 'student',
+        googleId: googleUser.id,
+        avatar: googleUser.picture,
+        isActive: true,
+        approvalStatus: 'approved',
+        emailVerified: true
+      });
+    } else {
+      user.googleId = googleUser.id;
+      user.avatar = googleUser.picture;
+      user.emailVerified = true;
+      if (!user.approvalStatus) user.approvalStatus = 'approved';
+      await user.save();
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        collegeId: user.collegeId,
+        role: user.role,
+        approvalStatus: user.approvalStatus,
+        emailVerified: user.emailVerified,
+        avatar: user.avatar,
+        roomNumber: user.roomNumber,
+        hostelBlock: user.hostelBlock,
+        department: user.department,
+        year: user.year,
+        phoneNumber: user.phoneNumber
+      }
+    });
+  } catch (error) {
+    console.error('Google OAuth Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Google authentication failed',
+      error: error.message
+    });
+  }
 });
 
-
 // @route   GET /api/auth/users
-// @desc    Get all users (Admin only)
-// @access  Private/Admin
 router.get('/users', protect, async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -644,12 +449,11 @@ router.get('/users', protect, async (req, res) => {
     }
 
     const { role, approvalStatus, search } = req.query;
-    
     const filter = {};
+
     if (role) filter.role = role;
     if (approvalStatus) filter.approvalStatus = approvalStatus;
-    
-    // Add search functionality
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -678,10 +482,7 @@ router.get('/users', protect, async (req, res) => {
   }
 });
 
-
 // @route   POST /api/auth/send-verification-otp
-// @desc    Send OTP to verify college email (or resend)
-// @access  Public
 router.post('/send-verification-otp', async (req, res) => {
   try {
     const { email } = req.body;
@@ -693,16 +494,8 @@ router.post('/send-verification-otp', async (req, res) => {
       });
     }
 
-    // Validate email domain
-    if (!email.toLowerCase().endsWith('@nitj.ac.in')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Only NITJ college email addresses (@nitj.ac.in) are allowed'
-      });
-    }
-
-    // Check if user exists
-    let user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -718,45 +511,40 @@ router.post('/send-verification-otp', async (req, res) => {
       });
     }
 
-    // Generate OTP
     const otp = user.generateEmailOTP();
     await user.save();
 
-    // Send OTP email
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Verify Your NITJ Hostel Account - OTP Code',
+        subject: 'Verify Your Hostel Management Account - OTP',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px;">
-            <div style="background: white; padding: 30px; border-radius: 8px;">
-              <h2 style="color: #667eea; text-align: center; margin-bottom: 20px;">🏠 NITJ Hostel Management</h2>
-              <h3 style="color: #333; margin-bottom: 15px;">Email Verification</h3>
-              <p style="color: #666; font-size: 16px; line-height: 1.6;">Hello ${user.name},</p>
-              <p style="color: #666; font-size: 16px; line-height: 1.6;">Your OTP for email verification is:</p>
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                <h1 style="color: #667eea; font-size: 36px; letter-spacing: 8px; margin: 0;">${otp}</h1>
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
+            <div style="background:white;padding:30px;border-radius:12px;">
+              <h2 style="color:#667eea;text-align:center;">Hostel Management</h2>
+              <h3>Email Verification</h3>
+              <p>Hello ${user.name},</p>
+              <p>Your OTP for email verification is:</p>
+              <div style="background:#667eea;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
+                <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your OTP</div>
+                <div style="font-size:44px;font-weight:700;letter-spacing:10px;margin-top:8px;">${otp}</div>
               </div>
-              <p style="color: #666; font-size: 14px; line-height: 1.6;"><strong>This OTP is valid for 10 minutes.</strong></p>
-              <p style="color: #666; font-size: 14px; line-height: 1.6;">Enter this OTP to verify your email and complete your registration.</p>
-              <p style="color: #666; font-size: 14px; line-height: 1.6;">If you didn't request this, please ignore this email.</p>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-              <p style="color: #999; font-size: 12px; text-align: center;">© 2026 NITJ Hostel Management System. All rights reserved.</p>
+              <p><strong>This OTP is valid for 10 minutes.</strong></p>
             </div>
           </div>
         `
       });
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'OTP sent to your college email. Please check your inbox.'
+        message: 'OTP sent to your email. Please check your inbox.'
       });
     } catch (emailError) {
       console.error('Email sending error:', emailError);
-      
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message: 'Failed to send OTP email. Please try again later.'
+        message: 'Failed to send OTP email. Please try again later.',
+        error: emailError.message
       });
     }
   } catch (error) {
@@ -770,8 +558,6 @@ router.post('/send-verification-otp', async (req, res) => {
 });
 
 // @route   POST /api/auth/verify-email-otp
-// @desc    Verify email with OTP
-// @access  Public
 router.post('/verify-email-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -783,7 +569,6 @@ router.post('/verify-email-otp', async (req, res) => {
       });
     }
 
-    // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -800,7 +585,6 @@ router.post('/verify-email-otp', async (req, res) => {
       });
     }
 
-    // Verify OTP
     if (!user.verifyEmailOTP(otp)) {
       return res.status(400).json({
         success: false,
@@ -808,7 +592,6 @@ router.post('/verify-email-otp', async (req, res) => {
       });
     }
 
-    // Mark email as verified
     user.emailVerified = true;
     user.emailVerificationOTP = undefined;
     user.emailVerificationOTPExpires = undefined;
@@ -819,64 +602,13 @@ router.post('/verify-email-otp', async (req, res) => {
       message: 'Email verified successfully! You can now login.'
     });
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    console.error('Email verification error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error verifying OTP',
+      message: 'Email verification failed',
       error: error.message
     });
   }
 });
 
-
-// @route   POST /api/auth/delete-account
-// @desc    Delete user account (self-service)
-// @access  Public
-router.post('/delete-account', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
-    }
-
-    // Find user
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // If user has a password (not Google-only), verify it
-    if (password && !user.password.startsWith('google-oauth-')) {
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: 'Incorrect password'
-        });
-      }
-    }
-
-    // Delete user
-    await User.findByIdAndDelete(user._id);
-
-    res.json({
-      success: true,
-      message: 'Account deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete account error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting account',
-      error: error.message
-    });
-  }
-});
+module.exports = router;
