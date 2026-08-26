@@ -2,110 +2,38 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true
-  },
-  collegeId: {
-    type: String,
-    required: [true, 'College ID is required'],
-    unique: true,
-    trim: true,
-    uppercase: true
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
-  },
-  password: {
-    type: String,
-    required: function() {
-      return !this.googleId;
-    },
-    minlength: [6, 'Password must be at least 6 characters']
-  },
-  googleId: {
-    type: String,
-    unique: true,
-    sparse: true
-  },
-  avatar: {
-    type: String
-  },
-  role: {
-    type: String,
-    enum: ['student', 'warden', 'admin'],
-    default: 'student'
-  },
+  name: { type: String, required: [true, 'Name is required'], trim: true },
+  collegeId: { type: String, required: [true, 'College ID is required'], unique: true, trim: true, uppercase: true },
+  email: { type: String, required: [true, 'Email is required'], unique: true, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'] },
+  password: { type: String, required: function() { return !this.googleId; }, minlength: [6, 'Password must be at least 6 characters'] },
+  googleId: { type: String, unique: true, sparse: true },
+  avatar: { type: String },
+  role: { type: String, enum: ['student', 'warden', 'admin'], default: 'student' },
   approvalStatus: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
-    default: function() {
-      return (this.role === 'admin' || this.role === 'student') ? 'approved' : 'pending';
-    }
+    default: function() { return (this.role === 'admin' || this.role === 'student') ? 'approved' : 'pending'; }
   },
-  approvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  approvedAt: {
-    type: Date
-  },
-  rejectionReason: {
-    type: String
-  },
-  roomNumber: {
-    type: String,
-    required: function() {
-      return this.role === 'student' && !this.googleId;
-    }
-  },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  approvedAt: { type: Date },
+  rejectionReason: { type: String },
+  roomNumber: { type: String, required: function() { return this.role === 'student' && !this.googleId; } },
   hostelBlock: String,
-  hostelId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hostel'
-  },
-  assignedWarden: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
+  hostelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hostel' },
+  assignedWarden: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   department: String,
   year: Number,
   phoneNumber: String,
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  emailVerified: {
-    type: Boolean,
-    default: false
-  },
-  emailVerificationOTP: {
-    type: String
-  },
-  emailVerificationOTPExpires: {
-    type: Date
-  },
-  passwordResetToken: {
-    type: String,
-    default: undefined
-  },
-  passwordResetExpires: {
-    type: Date,
-    default: undefined
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
-  timestamps: true
-});
+  isActive: { type: Boolean, default: true },
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationOTP: { type: String },
+  emailVerificationOTPExpires: { type: Date },
+  passwordResetToken: { type: String, default: undefined },
+  passwordResetExpires: { type: Date, default: undefined },
+  deleteAccountOTP: { type: String, default: undefined },
+  deleteAccountOTPExpires: { type: Date, default: undefined },
+  createdAt: { type: Date, default: Date.now }
+}, { timestamps: true });
 
 userSchema.index({ collegeId: 1 });
 userSchema.index({ email: 1 });
@@ -116,7 +44,6 @@ userSchema.index({ assignedWarden: 1 });
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -138,14 +65,8 @@ userSchema.methods.generateEmailOTP = function() {
 };
 
 userSchema.methods.verifyEmailOTP = function(otp) {
-  if (!this.emailVerificationOTP || !this.emailVerificationOTPExpires) {
-    return false;
-  }
-
-  if (Date.now() > this.emailVerificationOTPExpires) {
-    return false;
-  }
-
+  if (!this.emailVerificationOTP || !this.emailVerificationOTPExpires) return false;
+  if (Date.now() > this.emailVerificationOTPExpires) return false;
   return this.emailVerificationOTP === otp;
 };
 
@@ -154,6 +75,8 @@ userSchema.methods.toJSON = function() {
   delete obj.password;
   delete obj.passwordResetToken;
   delete obj.passwordResetExpires;
+  delete obj.deleteAccountOTP;
+  delete obj.deleteAccountOTPExpires;
   delete obj.emailVerificationOTP;
   delete obj.emailVerificationOTPExpires;
   return obj;
