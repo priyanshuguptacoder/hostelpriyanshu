@@ -65,9 +65,9 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch(err => console.error('❌ MongoDB error:', err));
 
+// Auth route ordering matters. Keep dedicated fixes before legacy handlers.
 app.use('/api/auth', require('./routes/googleAuthFix'));
 app.use('/api/auth', require('./routes/emailVerificationFix'));
-app.use('/api/auth', require('./routes/otpVerificationFix'));
 app.use('/api/auth', require('./routes/authBehaviorFixes'));
 app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
@@ -111,26 +111,12 @@ app.get('/google-callback.html', (req, res) => {
 function sendIndex(req, res) {
   try {
     let html = fs.readFileSync(indexPath, 'utf8');
-
-    if (!html.includes('/css/uiFixes.css')) {
+    if (!html.includes('securityUiFixes.js')) {
       html = html.replace(
-        '</head>',
-        '    <link rel="stylesheet" href="/css/uiFixes.css?v=3">\n</head>'
+        '</body>',
+        '    <script src="/js/securityUiFixes.js?v=2"></script>\n</body>'
       );
     }
-
-    const scripts = [
-      '<script src="/js/securityUiFixes.js?v=3"></script>',
-      '<script src="/js/finalAppBehaviorFixes.js?v=1"></script>'
-    ];
-
-    for (const script of scripts) {
-      const marker = script.match(/src="([^"]+)/)?.[1];
-      if (marker && !html.includes(marker)) {
-        html = html.replace('</body>', `    ${script}\n</body>`);
-      }
-    }
-
     res.type('html').send(html);
   } catch (error) {
     console.error('Failed to serve index:', error);
