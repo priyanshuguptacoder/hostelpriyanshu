@@ -517,6 +517,11 @@ function showGenerateBillsForm() {
 async function generateAllBills(event) {
     event.preventDefault();
     
+    const btn = event.target.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
     const data = {
         month: parseInt(document.getElementById('bill-month').value),
         year: parseInt(document.getElementById('bill-year').value)
@@ -529,6 +534,9 @@ async function generateAllBills(event) {
     } catch (error) {
         if (error.name === 'AbortError') throw error;
         showAlert(error.message, 'error');
+    } finally {
+        btn.textContent = orig;
+        btn.disabled = false;
     }
 }
 

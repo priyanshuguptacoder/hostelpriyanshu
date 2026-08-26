@@ -160,6 +160,9 @@ async function apiCall(endpoint, method = 'GET', data = null, customOptions = {}
 
     // Use abort signal unless explicitly ignored
     if (activeAbortController && !customOptions.ignoreAbort) {
+        if (activeAbortController.signal.aborted) {
+            throw new DOMException('Aborted', 'AbortError');
+        }
         options.signal = activeAbortController.signal;
     }
 
@@ -370,7 +373,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- UI View Controllers ---
 function showAuth() {
     // Cancel any in-flight navigation
-    if (activeAbortController) activeAbortController.abort();
+    if (activeAbortController) {
+        activeAbortController.abort();
+        activeAbortController = null;
+    }
     viewHistory.length = 0;
     currentNavId++; // invalidate any pending nav
 
@@ -528,6 +534,7 @@ window.handleLogout = async function() {
     // Cancel all in-flight requests
     if (activeAbortController) {
         activeAbortController.abort();
+        activeAbortController = null;
     }
 
     // Invalidate all pending navigations

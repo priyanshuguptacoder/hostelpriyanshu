@@ -38,6 +38,8 @@ async function handleLogin(event) {
                 .catch(e => showAlert(e.message, 'error'));
         } else {
             showAlert(error.message || 'Login failed. Please try again.', 'error');
+            const passField = document.getElementById('login-password');
+            if (passField) passField.value = '';
         }
     } finally {
         isLoggingIn = false;
@@ -94,8 +96,11 @@ async function handleRegister(event) {
     return false;
 }
 
-// ==================== GOOGLE AUTH ====================
 function handleGoogleLogin() {
+    if (googleAuthListener) {
+        window.removeEventListener('message', googleAuthListener);
+        googleAuthListener = null;
+    }
     // Step 1: Get the Google auth URL from backend
     apiCall('/auth/google', 'GET', null, { ignoreAbort: true })
         .then(result => {
