@@ -133,15 +133,15 @@ function sendIndex(req, res) {
     if (!html.includes('/css/uiFinalFixes.css')) {
       html = html.replace(
         '</head>',
-        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=3">\n</head>'
+        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=4">\n</head>'
       );
     }
 
     const finalScripts = `
-    <script src="/js/securityUiFixes.js?v=5"></script>
-    <script src="/js/finalUiBehaviorFixes.js?v=4"></script>
-    <script src="/js/finalAppBehaviorFixes.js?v=2"></script>
-    <script src="/js/stabilityFixes.js?v=1"></script>`;
+    <script src="/js/securityUiFixes.js?v=6"></script>
+    <script src="/js/finalUiBehaviorFixes.js?v=5"></script>
+    <script src="/js/finalAppBehaviorFixes.js?v=3"></script>
+    <script src="/js/stabilityFixes.js?v=2"></script>`;
 
     if (!html.includes('/js/stabilityFixes.js')) {
       html = html.replace('</body>', `${finalScripts}\n</body>`);
