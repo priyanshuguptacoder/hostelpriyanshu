@@ -1625,6 +1625,12 @@ window.renderMyAttendance = renderMyAttendance;
 window.renderAnnouncements = renderAnnouncements;
 window.getMonthName = getMonthName;
 
+// Student render functions (called by app.js navigateTo)
+window.renderStudentDashboard = renderStudentDashboard;
+window.renderMarkMyAttendance = renderMarkMyAttendance;
+window.renderMyBills = renderMyBills;
+window.renderStudentAnnouncements = renderAnnouncements;  // alias
+
 console.log('Dashboard.js loaded - all functions exposed');
 
 

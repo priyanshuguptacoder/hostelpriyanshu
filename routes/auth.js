@@ -230,7 +230,9 @@ router.post('/login', async (req, res) => {
 router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found.' });
+    }
     res.json({
       success: true,
       user: {
@@ -239,6 +241,9 @@ router.get('/me', protect, async (req, res) => {
         collegeId: user.collegeId,
         email: user.email,
         role: user.role,
+        approvalStatus: user.approvalStatus,
+        emailVerified: user.emailVerified,
+        avatar: user.avatar,
         roomNumber: user.roomNumber,
         hostelBlock: user.hostelBlock,
         department: user.department,
@@ -396,7 +401,7 @@ router.post('/google/callback', async (req, res) => {
          user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
          await user.save();
          await sendEmail({
-            to: email,
+            email: email,
             subject: 'Email Verification OTP',
             html: `<h1>Email Verification</h1><p>Your OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
          });
@@ -415,7 +420,7 @@ router.post('/google/callback', async (req, res) => {
          user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
          await user.save();
          await sendEmail({
-            to: email,
+            email: email,
             subject: 'Email Verification OTP',
             html: `<h1>Email Verification</h1><p>Your fresh OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
          });
@@ -456,7 +461,7 @@ router.post('/google/callback', async (req, res) => {
 // @route   GET /api/auth/users
 router.get('/users', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'warden') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this resource'
@@ -594,9 +599,21 @@ router.post('/verify-email-otp', async (req, res) => {
     }
 
     if (user.emailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is already verified'
+      const token = generateToken(user._id);
+      return res.json({
+        success: true,
+        message: 'Email is already verified',
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          collegeId: user.collegeId,
+          role: user.role,
+          approvalStatus: user.approvalStatus,
+          emailVerified: user.emailVerified,
+          avatar: user.avatar
+        }
       });
     }
 

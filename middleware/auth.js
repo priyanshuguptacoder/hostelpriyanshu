@@ -46,7 +46,11 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    if ((user.role === 'student' || user.role === 'warden') && user.approvalStatus !== 'approved') {
+    // For the /me endpoint, allow pending/rejected users through so the
+    // frontend can display the correct approval portal.
+    const isMeEndpoint = req.path === '/me' || req.originalUrl.endsWith('/me');
+
+    if (!isMeEndpoint && (user.role === 'student' || user.role === 'warden') && user.approvalStatus !== 'approved') {
       return res.status(403).json({
         success: false,
         code: user.approvalStatus === 'rejected' ? 'ACCOUNT_REJECTED' : 'ACCOUNT_PENDING',

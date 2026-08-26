@@ -106,19 +106,7 @@ class NotificationManager {
 
 const notifications = new NotificationManager();
 
-// ==================== LOADING OVERLAY ====================
-function showLoading() {
-    const overlay = document.createElement('div');
-    overlay.id = 'loading-overlay';
-    overlay.className = 'spinner-overlay';
-    overlay.innerHTML = '<div class="spinner"></div>';
-    document.body.appendChild(overlay);
-}
-
-function hideLoading() {
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) overlay.remove();
-}
+// Loading functions moved to app.js
 
 // ==================== EXPORT TO CSV ====================
 function exportTableToCSV(tableId, filename = 'export.csv') {

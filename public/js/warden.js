@@ -230,7 +230,7 @@ async function markStudentAttendance(event) {
     
     try {
         // First, find the student by identifier
-        const searchResult = await apiCall(`/approvals/all-users?search=${identifier}`);
+        const searchResult = await apiCall(`/auth/users?search=${identifier}`);
         
         if (!searchResult.data || searchResult.data.length === 0) {
             showAlert('Student not found. Please check the College ID or Email.', 'error');
