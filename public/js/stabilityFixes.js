@@ -24,6 +24,7 @@
   let navigationPromise = null;
   let latestRequestedView = null;
   let originalLoadView = null;
+  let originalGoBackInApp = null;
 
   function removeLoading() {
     loadingDepth = 0;
@@ -278,6 +279,7 @@
 
   function initializeStability() {
     originalLoadView = window.loadView;
+    originalGoBackInApp = window.goBackInApp;
 
     window.apiCall = apiCallSafe;
     window.showLoading = showLoadingSafe;
@@ -286,8 +288,8 @@
     window.loadView = stableLoadView;
     window.handleLogout = stableLogout;
     window.showDashboard = stableShowDashboard;
-    window.goBackInApp = () => {
-      if (typeof window._hostelGoBack === 'function') return window._hostelGoBack();
+    window.goBackInApp = (...args) => {
+      if (typeof originalGoBackInApp === 'function') return originalGoBackInApp(...args);
       const role = (window.currentUser || {}).role;
       return stableLoadView(role === 'admin' ? 'adminDashboard' : role === 'warden' ? 'wardenDashboard' : 'studentDashboard');
     };
@@ -306,8 +308,6 @@
 
     removeLoading();
 
-    // app.js initializes before this final controller is injected. Reconcile
-    // the already-rendered state once so the first dashboard load is stable too.
     if (localStorage.getItem('token') && localStorage.getItem('user')) {
       setTimeout(() => {
         try {
