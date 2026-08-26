@@ -84,7 +84,6 @@ process.on('uncaughtException', error => {
   console.error('❌ Uncaught exception:', error);
 });
 
-// Auth route ordering matters. Keep dedicated fixes before legacy handlers.
 app.use('/api/auth', require('./routes/googleAuthFix'));
 app.use('/api/auth', require('./routes/emailVerificationFix'));
 app.use('/api/auth', require('./routes/authBehaviorFixes'));
@@ -134,15 +133,17 @@ function sendIndex(req, res) {
     if (!html.includes('/css/uiFinalFixes.css')) {
       html = html.replace(
         '</head>',
-        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=2">\n</head>'
+        '    <link rel="stylesheet" href="/css/uiFinalFixes.css?v=3">\n</head>'
       );
     }
 
     const finalScripts = `
-    <script src="/js/securityUiFixes.js?v=4"></script>
-    <script src="/js/finalUiBehaviorFixes.js?v=3"></script>`;
+    <script src="/js/securityUiFixes.js?v=5"></script>
+    <script src="/js/finalUiBehaviorFixes.js?v=4"></script>
+    <script src="/js/finalAppBehaviorFixes.js?v=2"></script>
+    <script src="/js/stabilityFixes.js?v=1"></script>`;
 
-    if (!html.includes('/js/finalUiBehaviorFixes.js')) {
+    if (!html.includes('/js/stabilityFixes.js')) {
       html = html.replace('</body>', `${finalScripts}\n</body>`);
     }
 
