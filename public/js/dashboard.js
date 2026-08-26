@@ -102,6 +102,23 @@ async function renderStudentDashboard() {
         
         const user = window.currentUser || currentUser;
         
+        // Check warden request status for popup
+        try {
+            const reqResult = await apiCall('/warden-requests/my-request', 'GET', null, { ignoreAbort: true });
+            if (reqResult.request && reqResult.request.status === 'rejected') {
+                const reqId = reqResult.request._id;
+                const lastSeen = localStorage.getItem('lastSeenRejectedRequestId');
+                if (lastSeen !== reqId) {
+                    if (window.showWardenRejectionPopup) {
+                        window.showWardenRejectionPopup(reqResult.request);
+                    }
+                    localStorage.setItem('lastSeenRejectedRequestId', reqId);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to check warden request status for popup', e);
+        }
+        
         // Calculate attendance percentage
         const totalDays = attendanceResult.stats.present + attendanceResult.stats.absent;
         const attendancePercentage = totalDays > 0 ? Math.round((attendanceResult.stats.present / totalDays) * 100) : 0;
@@ -885,7 +902,7 @@ async function renderWardenRequest() {
                         
                         ${result.request.status === 'rejected' ? `
                             <div class="alert alert-error" style="margin-top: 20px;">
-                                ❌ Your request was not approved. ${result.request.reviewNotes || 'Please contact admin for more information.'}
+                                ❌ Your request for Warden Access was rejected. ${result.request.reviewNotes || 'Please contact admin for more information.'}
                             </div>
                         ` : ''}
                         
@@ -894,6 +911,12 @@ async function renderWardenRequest() {
                                 <div style="font-size: 14px; color: var(--text-secondary);">Reviewed by: ${result.request.reviewedBy.name}</div>
                                 <div style="font-size: 14px; color: var(--text-secondary);">Reviewed on: ${formatDateTime(result.request.reviewedAt)}</div>
                                 ${result.request.reviewNotes ? `<div style="margin-top: 12px; padding: 12px; background: white; border-radius: var(--radius); font-size: 14px;">${result.request.reviewNotes}</div>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${result.request.status === 'rejected' ? `
+                            <div style="margin-top: 24px; padding-top: 20px; text-align: center; border-top: 2px solid var(--border);">
+                                <button class="btn" onclick="submitWardenRequest()">Submit New Request</button>
                             </div>
                         ` : ''}
                     </div>
@@ -1686,3 +1709,29 @@ async function reviewWardenRequest(requestId, action) {
 
 // Expose the function globally
 window.reviewWardenRequest = reviewWardenRequest;
+
+window.showWardenRejectionPopup = function(request) {
+    const modalHtml = `
+        <div class="modal active" id="wardenRejectModal" onclick="if(event.target === this) closeModal('wardenRejectModal')">
+            <div class="modal-content" style="max-width: 500px; text-align: center; padding: 40px 20px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+                <h3 style="color: var(--danger); margin-bottom: 12px;">Warden Access Request Rejected</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 24px;">Your request for Warden Access was rejected.</p>
+                
+                <div style="background: var(--light-gray); padding: 16px; border-radius: var(--radius); text-align: left; margin-bottom: 24px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;">Reason:</div>
+                    <div style="color: var(--text-secondary);">${request.reviewNotes || 'Please contact admin for more information.'}</div>
+                </div>
+                
+                <div class="flex gap-2" style="justify-content: center;">
+                    <button class="btn btn-outline" onclick="closeModal('wardenRejectModal')">Dismiss</button>
+                    <button class="btn" onclick="closeModal('wardenRejectModal'); loadView('wardenRequest')">View Request</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const div = document.createElement('div');
+    div.innerHTML = modalHtml;
+    document.body.appendChild(div.firstElementChild);
+}

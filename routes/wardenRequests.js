@@ -238,13 +238,17 @@ router.put('/:id/reject', protect, authorize('admin'), async (req, res) => {
         request.reviewedAt = Date.now();
         request.reviewNotes = req.body.notes || req.body.reason || 'Rejected by admin';
 
-        // 3. Find and update user.approvalStatus = "rejected"
+        // 3. Update user if needed
         const user = await User.findById(request.userId);
 
         if (user) {
-            user.approvalStatus = 'rejected';
-            user.rejectionReason = req.body.notes || req.body.reason || 'Request rejected by admin';
-            await user.save();
+            // If they are an approved student requesting warden access, they should remain an approved student.
+            // If they are a pending manual signup warden, they should be marked as rejected.
+            if (user.approvalStatus === 'pending') {
+                user.approvalStatus = 'rejected';
+                user.rejectionReason = req.body.notes || req.body.reason || 'Request rejected by admin';
+                await user.save();
+            }
         }
 
         // 4. Save request
@@ -252,8 +256,17 @@ router.put('/:id/reject', protect, authorize('admin'), async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Warden request rejected',
-            request
+            message: 'Warden access request rejected.',
+            request: {
+                status: request.status,
+                reviewNotes: request.reviewNotes,
+                reviewedAt: request.reviewedAt,
+                reviewedBy: request.reviewedBy
+            },
+            user: user ? {
+                role: user.role,
+                approvalStatus: user.approvalStatus
+            } : null
         });
     } catch (error) {
         console.error('Error rejecting warden request:', error);
