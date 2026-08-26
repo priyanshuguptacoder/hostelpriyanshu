@@ -11,6 +11,13 @@ const PRIMARY_ACCOUNTS = [
     approvalStatus: 'approved'
   },
   {
+    email: 'priyanshuguptaiit99@gmail.com',
+    name: 'Priyanshu Gupta',
+    collegeId: 'ADMIN002',
+    role: 'admin',
+    approvalStatus: 'approved'
+  },
+  {
     email: 'wardenpriyanshu@hostel.com',
     name: 'Hostel Warden',
     collegeId: 'WARDEN001',
