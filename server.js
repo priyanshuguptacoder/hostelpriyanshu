@@ -2,7 +2,7 @@
  * Hostel Management System
  *
  * @author Priyanshu
- * @version 2.3
+ * @version 2.4
  */
 
 const express = require('express');
@@ -26,8 +26,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.use(session({
   secret: process.env.JWT_SECRET || 'change-this-secret',
@@ -35,6 +35,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -46,7 +48,7 @@ try {
   require('./config/passport')(passport);
   console.log('✅ Passport configured');
 } catch (err) {
-  console.log('⚠️ Passport config not found');
+  console.log('⚠️ Passport config not found:', err.message);
 }
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -67,7 +69,25 @@ app.use('/api/announcements', require('./routes/announcements'));
 app.use('/api/warden-requests', require('./routes/wardenRequests'));
 
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Server running' });
+  const dbState = mongoose.connection.readyState;
+  const databaseReady = dbState === 1;
+  const emailConfigured = Boolean(process.env.BREVO_API_KEY && process.env.BREVO_FROM_EMAIL);
+  const googleConfigured = Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_REDIRECT_URI
+  );
+
+  res.status(databaseReady ? 200 : 503).json({
+    success: databaseReady,
+    message: databaseReady ? 'Server running' : 'Database is not connected',
+    services: {
+      database: databaseReady,
+      email: emailConfigured,
+      googleOAuth: googleConfigured
+    },
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 app.get('/google-callback.html', (req, res) => {
@@ -76,15 +96,7 @@ app.get('/google-callback.html', (req, res) => {
 
 function sendIndex(req, res) {
   try {
-    let html = fs.readFileSync(indexPath, 'utf8');
-
-    if (!html.includes('js/authFixes.js')) {
-      html = html.replace(
-        '</body>',
-        '    <script src="js/authFixes.js"></script>\n</body>'
-      );
-    }
-
+    const html = fs.readFileSync(indexPath, 'utf8');
     res.type('html').send(html);
   } catch (error) {
     console.error('Failed to serve index:', error);
@@ -95,7 +107,6 @@ function sendIndex(req, res) {
 // Keep static assets available but do not let express.static serve index.html first.
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
-// Serve the SPA with the authentication fixes injected after auth.js.
 app.get('/', sendIndex);
 app.get('/index.html', sendIndex);
 
@@ -108,7 +119,7 @@ app.get('*', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error('Unhandled server error:', err);
   res.status(500).json({
     success: false,
     message: 'Internal server error'
