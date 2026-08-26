@@ -121,7 +121,7 @@ function sendIndex(req, res) {
 
     const finalScripts = `
     <script src="/js/securityUiFixes.js?v=3"></script>
-    <script src="/js/finalUiBehaviorFixes.js?v=1"></script>`;
+    <script src="/js/finalUiBehaviorFixes.js?v=2"></script>`;
 
     if (!html.includes('/js/finalUiBehaviorFixes.js')) {
       html = html.replace('</body>', `${finalScripts}\n</body>`);
