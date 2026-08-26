@@ -69,7 +69,8 @@
     background: rgba(99,102,241,.18) !important;
 }
 
-.view-loading-state {
+.view-loading-state,
+.page-loading-state {
     min-height: 360px;
     display: flex;
     flex-direction: column;
@@ -80,44 +81,57 @@
     color: var(--text-secondary);
 }
 
-.view-loading-state .spinner {
+.view-loading-state .spinner,
+.page-loading-state .spinner {
     width: 48px;
     height: 48px;
+    margin: 0;
 }
 
-.view-loading-title {
+.view-loading-title,
+.page-loading-state p {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--text-primary);
+    margin: 0;
 }
 
 .view-loading-subtitle {
     font-size: 13px;
 }
 
-.view-load-error {
+.view-load-error,
+.page-load-error {
     max-width: 640px;
     margin: 40px auto;
     text-align: center;
     padding: 40px 28px !important;
+    background: var(--card-background, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .08);
 }
 
-.view-load-error-icon {
+.view-load-error-icon,
+.page-load-error-icon {
     font-size: 42px;
     margin-bottom: 14px;
 }
 
-.view-load-error h3 {
+.view-load-error h3,
+.page-load-error h3 {
     margin: 0 0 10px;
     color: var(--text-primary);
 }
 
-.view-load-error p {
+.view-load-error p,
+.page-load-error p {
     color: var(--text-secondary);
     line-height: 1.6;
 }
 
-.view-load-error-actions {
+.view-load-error-actions,
+.page-load-error-actions {
     display: flex;
     justify-content: center;
     gap: 10px;
@@ -182,5 +196,11 @@
     .page-header-with-back > .page-back-button {
         position: static !important;
         margin-bottom: 14px !important;
+    }
+
+    .page-load-error,
+    .view-load-error {
+        margin: 24px 0;
+        padding: 28px 20px !important;
     }
 }
