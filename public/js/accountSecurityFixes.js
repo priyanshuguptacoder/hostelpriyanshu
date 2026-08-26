@@ -5,6 +5,41 @@
     window.updateAuthState?.(null, null);
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function authShell(content) {
+    return `
+      <div class="particles-bg">
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        <div class="particle"></div>
+      </div>
+      <div class="auth-container">
+        <h1>Hostel Management</h1>
+        <p class="auth-subtitle">Manage your hostel life with ease</p>
+        ${content}
+      </div>
+      <footer class="auth-footer">
+        <div class="footer-divider"></div>
+        <p class="copyright">© 2026 Hostel Management System • All Rights Reserved</p>
+        <p class="creator">Crafted with <span class="heart">❤️</span> by <strong>Priyanshu</strong></p>
+      </footer>
+    `;
+  }
+
+  function renderAuthPage(content) {
+    const authSection = document.getElementById('auth-section');
+    if (authSection) authSection.innerHTML = authShell(content);
+  }
+
   async function handleForgotPasswordSecurity(event) {
     event.preventDefault();
 
@@ -33,13 +68,11 @@
   }
 
   function showResetPasswordSecurity(token) {
-    const authSection = document.getElementById('auth-section');
-    if (!authSection || !token) return;
+    if (!token) return;
 
-    authSection.innerHTML = `
-      <div class="auth-container" style="max-width:550px;">
-        <h1>🔐 Reset Password</h1>
-        <p class="auth-subtitle">Create a new password for your account</p>
+    renderAuthPage(`
+      <div class="auth-form">
+        <h2>Reset Password</h2>
         <form id="reset-password-security-form">
           <div class="form-input-wrapper" data-icon="🔒">
             <input type="password" id="reset-password-security" placeholder="New Password (min 6 characters)" minlength="6" required>
@@ -47,13 +80,11 @@
           <div class="form-input-wrapper" data-icon="✅">
             <input type="password" id="reset-password-security-confirm" placeholder="Confirm New Password" minlength="6" required>
           </div>
-          <button type="submit">Reset Password</button>
+          <button type="submit">Reset Password <span>→</span></button>
         </form>
-        <p style="text-align:center;margin-top:16px;">
-          <a href="#" onclick="window.showLogin(); return false;">← Back to Sign In</a>
-        </p>
+        <p><a href="#" onclick="window.showLogin(); return false;">Back to Sign In</a></p>
       </div>
-    `;
+    `);
 
     document.getElementById('reset-password-security-form').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -88,27 +119,22 @@
   }
 
   function showDeleteAccountSecurity() {
-    const authSection = document.getElementById('auth-section');
-    if (!authSection) return;
-
-    authSection.innerHTML = `
-      <div class="auth-container" style="max-width:550px;">
-        <h1 style="color:var(--danger);">🗑️ Delete My Account</h1>
-        <p class="auth-subtitle">Verify your email before permanently deleting your account.</p>
+    renderAuthPage(`
+      <div class="auth-form">
+        <h2>Delete My Account</h2>
+        <p style="text-align:center;color:var(--text-light);margin-bottom:20px;">Verify your email before permanently deleting your account.</p>
         <div class="alert alert-error" style="margin-bottom:20px;">
-          This action cannot be undone.
+          This action cannot be undone. Your account will be permanently removed.
         </div>
         <form id="delete-account-request-form">
           <div class="form-input-wrapper" data-icon="📧">
             <input type="email" id="delete-account-email-security" placeholder="Email Address" required>
           </div>
-          <button type="submit" style="background:var(--danger);">Send Deletion OTP</button>
+          <button type="submit" style="background:linear-gradient(135deg,var(--danger),#dc2626);">Send Deletion OTP <span>→</span></button>
         </form>
-        <p style="text-align:center;margin-top:16px;">
-          <a href="#" onclick="window.showLogin(); return false;">← Back to Sign In</a>
-        </p>
+        <p><a href="#" onclick="window.showLogin(); return false;">Back to Sign In</a></p>
       </div>
-    `;
+    `);
 
     document.getElementById('delete-account-request-form').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -126,27 +152,24 @@
   }
 
   function showDeleteOtpStep(email) {
-    const authSection = document.getElementById('auth-section');
-    if (!authSection) return;
+    const safeEmail = escapeHtml(email);
 
-    authSection.innerHTML = `
-      <div class="auth-container" style="max-width:550px;">
-        <h1 style="color:var(--danger);">🗑️ Confirm Account Deletion</h1>
-        <p class="auth-subtitle">Enter the OTP sent to <strong>${email}</strong></p>
+    renderAuthPage(`
+      <div class="auth-form">
+        <h2>Confirm Account Deletion</h2>
+        <p style="text-align:center;color:var(--text-light);margin-bottom:20px;">Enter the 6-digit OTP sent to <strong>${safeEmail}</strong></p>
         <div class="alert alert-error" style="margin-bottom:20px;">
           Your account will be permanently deleted after successful verification.
         </div>
         <form id="delete-account-confirm-form">
           <div class="form-input-wrapper" data-icon="🔢">
-            <input type="text" id="delete-account-otp-security" placeholder="6-digit OTP" inputmode="numeric" maxlength="6" required>
+            <input type="text" id="delete-account-otp-security" placeholder="6-digit OTP" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
           </div>
-          <button type="submit" style="background:var(--danger);">Confirm Delete Account</button>
+          <button type="submit" style="background:linear-gradient(135deg,var(--danger),#dc2626);">Confirm Delete Account <span>→</span></button>
         </form>
-        <p style="text-align:center;margin-top:16px;">
-          <a href="#" onclick="showDeleteAccountSecurity(); return false;">← Back</a>
-        </p>
+        <p><a href="#" onclick="showDeleteAccountSecurity(); return false;">Back</a></p>
       </div>
-    `;
+    `);
 
     document.getElementById('delete-account-confirm-form').addEventListener('submit', async (event) => {
       event.preventDefault();
