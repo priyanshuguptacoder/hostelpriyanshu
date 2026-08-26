@@ -5,33 +5,28 @@ const sendEmail = require('../utils/email');
 
 const router = express.Router();
 
-function publicFrontendUrl(req) {
-  return (process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}/`).replace(/\/$/, '');
+const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+
+function publicOrigin(req) {
+  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  return `${protocol}://${req.get('host')}`;
 }
 
 router.post('/forgot-password', async (req, res) => {
   try {
     const email = req.body.email?.trim().toLowerCase();
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
-    }
-
-    const genericMessage = 'If an account exists for this email, a password reset link has been sent.';
+    const message = 'If an account exists for this email, a password reset link has been sent.';
     const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.json({ success: true, message: genericMessage });
-    }
+    if (!user) return res.json({ success: true, message });
 
     const rawToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-
-    user.passwordResetToken = hashedToken;
+    user.passwordResetToken = hash(rawToken);
     user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
-    const resetUrl = `${publicFrontendUrl(req)}?resetToken=${encodeURIComponent(rawToken)}`;
+    const resetUrl = `${publicOrigin(req)}/reset-password/${encodeURIComponent(rawToken)}`;
 
     try {
       await sendEmail({
@@ -57,116 +52,110 @@ router.post('/forgot-password', async (req, res) => {
       user.passwordResetExpires = undefined;
       await user.save();
       console.error('Password reset email error:', emailError);
-      return res.status(500).json({
-        success: false,
-        message: 'Could not send the password reset email. Please try again later.'
-      });
+      return res.status(500).json({ success: false, message: 'Could not send the password reset email. Please try again later.' });
     }
 
-    return res.json({ success: true, message: genericMessage });
+    return res.json({ success: true, message });
   } catch (error) {
     console.error('Forgot password error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to process password reset request',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Unable to process password reset request' });
   }
 });
 
 router.post('/reset-password', async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const token = String(req.body.token || '').trim();
+    const newPassword = String(req.body.newPassword || '');
 
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Reset token and new password are required'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
-    }
-
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    if (!token || !newPassword) return res.status(400).json({ success: false, message: 'Reset token and new password are required' });
+    if (newPassword.length < 6) return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
 
     const user = await User.findOne({
-      passwordResetToken: hashedToken,
+      passwordResetToken: hash(token),
       passwordResetExpires: { $gt: new Date() }
     });
 
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'Reset link is invalid or expired. Please request a new one.'
-      });
-    }
+    if (!user) return res.status(400).json({ success: false, message: 'Reset link is invalid or expired. Please request a new one.' });
 
     user.password = newPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
 
-    return res.json({
-      success: true,
-      message: 'Password reset successfully. You can now login.'
-    });
+    return res.json({ success: true, message: 'Password reset successfully. You can now login.' });
   } catch (error) {
     console.error('Reset password error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to reset password',
-      error: error.message
-    });
+    return res.status(500).json({ success: false, message: 'Unable to reset password' });
   }
 });
 
-router.post('/delete-account', async (req, res) => {
+router.post('/request-delete-otp', async (req, res) => {
   try {
     const email = req.body.email?.trim().toLowerCase();
-    const password = req.body.password;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required to delete the account'
+    const message = 'If an account exists for this email, a deletion OTP has been sent.';
+    const user = await User.findOne({ email });
+    if (!user) return res.json({ success: true, message });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.deleteAccountOTP = hash(otp);
+    user.deleteAccountOTPExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Delete Your Hostel Management Account - OTP',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
+            <div style="background:#fff;padding:30px;border-radius:12px;">
+              <h2 style="color:#dc3545;text-align:center;">Account Deletion</h2>
+              <p>Hello ${user.name || 'there'},</p>
+              <p>Use the OTP below to permanently delete your Hostel Management account.</p>
+              <div style="background:#dc3545;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
+                <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Deletion OTP</div>
+                <div style="font-size:44px;font-weight:700;letter-spacing:10px;margin-top:8px;">${otp}</div>
+              </div>
+              <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p>If you did not request account deletion, ignore this email.</p>
+            </div>
+          </div>
+        `
       });
+    } catch (emailError) {
+      user.deleteAccountOTP = undefined;
+      user.deleteAccountOTPExpires = undefined;
+      await user.save();
+      console.error('Delete OTP email error:', emailError);
+      return res.status(500).json({ success: false, message: 'Could not send the deletion OTP. Please try again later.' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    return res.json({ success: true, message });
+  } catch (error) {
+    console.error('Request delete OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to process account deletion request' });
+  }
+});
 
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
-    }
+router.post('/confirm-delete-otp', async (req, res) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const otp = String(req.body.otp || '').trim();
 
-    if (user.googleId && user.password) {
-      // Google accounts may also have a password if they used reset-password.
-      // Compare below normally.
-    }
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
 
-    const matches = await user.comparePassword(password);
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ success: false, message: 'Invalid or expired deletion OTP' });
 
-    if (!matches) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password' });
-    }
+    const valid = user.deleteAccountOTP && user.deleteAccountOTPExpires && Date.now() <= user.deleteAccountOTPExpires && user.deleteAccountOTP === hash(otp);
+    if (!valid) return res.status(400).json({ success: false, message: 'Invalid or expired deletion OTP' });
 
     await User.deleteOne({ _id: user._id });
-
-    return res.json({
-      success: true,
-      message: 'Account deleted successfully'
-    });
+    return res.json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
-    console.error('Delete account error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to delete account',
-      error: error.message
-    });
+    console.error('Confirm delete OTP error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to delete account' });
   }
 });
 
