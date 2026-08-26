@@ -19,10 +19,19 @@ dotenv.config();
 const app = express();
 const indexPath = path.join(__dirname, 'public', 'index.html');
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || true
-    : true,
+  origin: (origin, callback) => {
+    if (!origin || process.env.NODE_ENV !== 'production' || allowedOrigins.length === 0) {
+      return callback(null, true);
+    }
+
+    return callback(null, allowedOrigins.includes(origin));
+  },
   credentials: true
 }));
 
@@ -36,7 +45,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -55,7 +64,8 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-// Fixed authentication routes must be mounted before the legacy auth router.
+// Hardened authentication routes come first so legacy handlers cannot override fixes.
+app.use('/api/auth', require('./routes/authBehaviorFixes'));
 app.use('/api/auth', require('./routes/authFixes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/account', require('./routes/account'));
@@ -104,7 +114,6 @@ function sendIndex(req, res) {
   }
 }
 
-// Keep static assets available but do not let express.static serve index.html first.
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 app.get('/', sendIndex);
