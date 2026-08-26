@@ -442,7 +442,21 @@ router.post('/google/callback', async (req, res) => {
            await sendEmail({
               email: email,
               subject: 'Verify Your Hostel Management Account - OTP',
-              html: `<h1>Email Verification</h1><p>Your OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+              html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
+            <div style="background:white;padding:30px;border-radius:12px;">
+              <h2 style="color:#667eea;text-align:center;">Hostel Management</h2>
+              <h3>Welcome ${user.name}!</h3>
+              <p>Use the OTP below to verify your email address.</p>
+              <div style="background:#667eea;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
+                <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your OTP</div>
+                <div style="font-size:44px;font-weight:700;letter-spacing:10px;margin-top:8px;">${otp}</div>
+              </div>
+              <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p>If you did not create this account, you can ignore this email.</p>
+            </div>
+          </div>
+        `
            });
            
            return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
@@ -470,7 +484,21 @@ router.post('/google/callback', async (req, res) => {
            await sendEmail({
               email: email,
               subject: 'Verify Your Hostel Management Account - OTP',
-              html: `<h1>Email Verification</h1><p>Your fresh OTP is: <strong>${otp}</strong></p><p>It will expire in 10 minutes.</p>`
+              html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f4f4f4;">
+            <div style="background:white;padding:30px;border-radius:12px;">
+              <h2 style="color:#667eea;text-align:center;">Hostel Management</h2>
+              <h3>Welcome ${user.name}!</h3>
+              <p>Use the fresh OTP below to verify your email address.</p>
+              <div style="background:#667eea;color:white;text-align:center;padding:25px;border-radius:10px;margin:20px 0;">
+                <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your OTP</div>
+                <div style="font-size:44px;font-weight:700;letter-spacing:10px;margin-top:8px;">${otp}</div>
+              </div>
+              <p><strong>This OTP is valid for 10 minutes.</strong></p>
+              <p>If you did not request this, you can ignore this email.</p>
+            </div>
+          </div>
+        `
            });
            
            return res.status(403).json({ success: false, message: 'Please verify your email.', requiresVerification: true, email: user.email });
