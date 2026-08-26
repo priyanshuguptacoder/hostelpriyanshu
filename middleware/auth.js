@@ -1,132 +1,124 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Protect routes - verify JWT token
 exports.protect = async (req, res, next) => {
   try {
     let token;
-    
-    // Check for token in Authorization header
+
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
 
-    // Check if token exists
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Not authorized to access this route. Please login.' 
+      return res.status(401).json({
+        success: false,
+        code: 'AUTH_REQUIRED',
+        message: 'Not authorized to access this route. Please login.'
       });
     }
 
+    let decoded;
     try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from token
-      req.user = await User.findById(decoded.id).select('-password');
-      
-      if (!req.user) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'User not found. Please login again.' 
-        });
-      }
-
-      if (!req.user.isActive) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Your account has been deactivated. Please contact admin.' 
-        });
-      }
-
-      // Check if student is approved
-      if (req.user.role === 'student' && req.user.approvalStatus !== 'approved') {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Your account is pending approval. Please wait for warden approval.' 
-        });
-      }
-
-      // Check if warden is approved
-      if (req.user.role === 'warden' && req.user.approvalStatus !== 'approved') {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Your account is pending approval. Please wait for admin approval.' 
-        });
-      }
-
-      next();
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid or expired token. Please login again.' 
+      return res.status(401).json({
+        success: false,
+        code: error.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+        message: 'Invalid or expired token. Please login again.'
       });
     }
+
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        code: 'USER_NOT_FOUND',
+        message: 'User account was not found. Please login again.'
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'Your account has been deactivated. Please contact admin.'
+      });
+    }
+
+    if ((user.role === 'student' || user.role === 'warden') && user.approvalStatus !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        code: user.approvalStatus === 'rejected' ? 'ACCOUNT_REJECTED' : 'ACCOUNT_PENDING',
+        approvalStatus: user.approvalStatus,
+        message: user.approvalStatus === 'rejected'
+          ? (user.rejectionReason || 'Your account request was rejected.')
+          : (user.role === 'warden'
+            ? 'Your warden account is pending admin approval.'
+            : 'Your student account is pending approval.')
+      });
+    }
+
+    req.user = user;
+    return next();
   } catch (error) {
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Authentication error',
-      error: error.message 
+    console.error('Authentication middleware error:', error);
+    return res.status(500).json({
+      success: false,
+      code: 'AUTH_MIDDLEWARE_ERROR',
+      message: 'Authentication service is temporarily unavailable.'
     });
   }
 };
 
-// Authorize specific roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        success: false, 
-        message: `User role '${req.user.role}' is not authorized to access this route` 
+      return res.status(403).json({
+        success: false,
+        code: 'ROLE_FORBIDDEN',
+        message: `User role '${req.user.role}' is not authorized to access this route`
       });
     }
     next();
   };
 };
 
-// Check if user is accessing their own data
 exports.checkOwnership = (req, res, next) => {
   const requestedUserId = req.params.studentId || req.params.userId || req.body.studentId;
-  
-  // Warden can access any data
-  if (req.user.role === 'warden') {
+
+  if (req.user.role === 'warden' || req.user.role === 'admin') {
     return next();
   }
-  
-  // Student can only access their own data
+
   if (req.user.role === 'student') {
     if (requestedUserId && requestedUserId !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'You are not authorized to access this data' 
+      return res.status(403).json({
+        success: false,
+        code: 'OWNERSHIP_FORBIDDEN',
+        message: 'You are not authorized to access this data.'
       });
     }
   }
-  
+
   next();
 };
 
-// Validate student can only mark their own attendance
 exports.validateAttendanceOwnership = (req, res, next) => {
-  // If warden, allow any studentId
-  if (req.user.role === 'warden') {
+  if (req.user.role === 'warden' || req.user.role === 'admin') {
     return next();
   }
-  
-  // If student, ensure they're marking their own attendance
+
   if (req.user.role === 'student') {
-    // If studentId is provided in body, it must match logged-in user
     if (req.body.studentId && req.body.studentId !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'You can only mark your own attendance' 
+      return res.status(403).json({
+        success: false,
+        code: 'ATTENDANCE_OWNERSHIP_FORBIDDEN',
+        message: 'You can only mark your own attendance.'
       });
     }
-    
-    // Set studentId to logged-in user
     req.body.studentId = req.user._id.toString();
   }
-  
+
   next();
 };
