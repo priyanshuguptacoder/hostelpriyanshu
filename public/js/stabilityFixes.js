@@ -21,10 +21,9 @@
   let loadingTimer = null;
   let navigationSequence = 0;
   let navigationRunning = false;
+  let navigationPromise = null;
   let latestRequestedView = null;
-  let originalApiCall = null;
   let originalLoadView = null;
-  let originalShowDashboard = null;
 
   function removeLoading() {
     loadingDepth = 0;
@@ -47,7 +46,6 @@
     overlay.setAttribute('aria-live', 'polite');
     overlay.innerHTML = `<div class="spinner" aria-hidden="true"></div><div class="loading-message">${message}</div>`;
     document.body.appendChild(overlay);
-
     loadingTimer = setTimeout(removeLoading, 10000);
   }
 
@@ -55,14 +53,6 @@
     if (force) return removeLoading();
     loadingDepth = Math.max(0, loadingDepth - 1);
     if (loadingDepth === 0) removeLoading();
-  }
-
-  function showRuntimeError(message) {
-    if (typeof window.showAlert === 'function') {
-      window.showAlert(message, 'error');
-      return;
-    }
-    console.error(message);
   }
 
   async function apiCallSafe(endpoint, method = 'GET', data = null) {
@@ -98,12 +88,11 @@
         error.approvalStatus = result.approvalStatus;
         error.code = result.code;
 
-        // Only a true token-authentication failure should clear the session.
         const isSessionFailure = response.status === 401 && (
           endpoint === '/auth/me' ||
           result.code === 'TOKEN_EXPIRED' ||
           result.code === 'INVALID_TOKEN' ||
-          /invalid or expired token|user not found/i.test(result.message || '')
+          result.code === 'USER_NOT_FOUND'
         );
 
         if (isSessionFailure) {
@@ -174,9 +163,7 @@
             delay(9000).then(() => { throw Object.assign(new Error('This page is taking too long to load.'), { code: 'VIEW_TIMEOUT' }); })
           ]);
         } catch (error) {
-          if (error?.code !== 'VIEW_TIMEOUT') {
-            console.error(`View '${target}' failed:`, error);
-          }
+          console.error(`View '${target}' failed:`, error);
           if (runId === navigationSequence && document.getElementById('content-area')) {
             document.getElementById('content-area').innerHTML = `
               <div class="page-load-error">
@@ -190,10 +177,6 @@
               </div>`;
           }
         }
-
-        // If the user clicked another page while the previous view was loading,
-        // immediately process the latest requested page after the old render settles.
-        if (latestRequestedView && latestRequestedView === target) latestRequestedView = null;
       }
     } finally {
       navigationRunning = false;
@@ -203,7 +186,12 @@
 
   function stableLoadView(viewName) {
     latestRequestedView = viewName;
-    runLatestNavigation();
+    if (!navigationPromise) {
+      navigationPromise = runLatestNavigation().finally(() => {
+        navigationPromise = null;
+      });
+    }
+    return navigationPromise;
   }
 
   function handleRuntimeActions(event) {
@@ -226,6 +214,7 @@
     navigationSequence += 1;
     latestRequestedView = null;
     navigationRunning = false;
+    navigationPromise = null;
     removeLoading();
 
     localStorage.removeItem('token');
@@ -238,7 +227,11 @@
     const dashboard = document.getElementById('dashboard-section');
     const auth = document.getElementById('auth-section');
 
-    if (dashboard) dashboard.style.display = 'none';
+    if (dashboard) {
+      dashboard.style.display = 'none';
+      document.getElementById('sidebar-menu')?.replaceChildren();
+      document.getElementById('content-area')?.replaceChildren();
+    }
     if (auth) auth.style.display = 'block';
 
     try {
@@ -259,9 +252,7 @@
     let user = rawUser ? (() => { try { return JSON.parse(rawUser); } catch { return null; } })() : null;
     const token = localStorage.getItem('token');
 
-    if (!user || !token) {
-      return window.showAuth?.();
-    }
+    if (!user || !token) return window.showAuth?.();
 
     user = normalizeUser(user);
     localStorage.setItem('user', JSON.stringify(user));
@@ -285,10 +276,8 @@
 
   document.addEventListener('click', handleRuntimeActions);
 
-  const originalHandlersReady = () => {
-    originalApiCall = window.apiCall;
+  function initializeStability() {
     originalLoadView = window.loadView;
-    originalShowDashboard = window.showDashboard;
 
     window.apiCall = apiCallSafe;
     window.showLoading = showLoadingSafe;
@@ -297,6 +286,11 @@
     window.loadView = stableLoadView;
     window.handleLogout = stableLogout;
     window.showDashboard = stableShowDashboard;
+    window.goBackInApp = () => {
+      if (typeof window._hostelGoBack === 'function') return window._hostelGoBack();
+      const role = (window.currentUser || {}).role;
+      return stableLoadView(role === 'admin' ? 'adminDashboard' : role === 'warden' ? 'wardenDashboard' : 'studentDashboard');
+    };
 
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -311,12 +305,25 @@
     }
 
     removeLoading();
-  };
+
+    // app.js initializes before this final controller is injected. Reconcile
+    // the already-rendered state once so the first dashboard load is stable too.
+    if (localStorage.getItem('token') && localStorage.getItem('user')) {
+      setTimeout(() => {
+        try {
+          stableShowDashboard();
+        } catch (error) {
+          console.error('Initial dashboard recovery failed:', error);
+          window.showAuth?.();
+        }
+      }, 0);
+    }
+  }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', originalHandlersReady, { once: true });
+    document.addEventListener('DOMContentLoaded', initializeStability, { once: true });
   } else {
-    originalHandlersReady();
+    initializeStability();
   }
 
   window.addEventListener('error', event => {
