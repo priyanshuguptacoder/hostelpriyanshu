@@ -1,0 +1,130 @@
+/* Final UI refinements: navigation and global loading. */
+
+.page-header-with-back {
+    position: relative !important;
+    display: block !important;
+    min-height: 72px !important;
+    padding: 0 100px !important;
+    text-align: center !important;
+}
+
+.page-header-with-back > .page-back-button {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+}
+
+.page-header-with-back > h1,
+.page-header-with-back > h2,
+.page-header-with-back > h3 {
+    margin: 0 !important;
+}
+
+.page-header-with-back > p {
+    margin-top: 10px !important;
+}
+
+.page-back-button {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    border: 1px solid rgba(99, 102, 241, .22) !important;
+    background: rgba(255, 255, 255, .94) !important;
+    color: #4f46e5 !important;
+    border-radius: 999px !important;
+    min-height: 42px !important;
+    padding: 10px 17px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font: inherit !important;
+    font-size: 14px !important;
+    font-weight: 750 !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, .10) !important;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease !important;
+    z-index: 2 !important;
+}
+
+.page-back-button:hover {
+    transform: translateX(-2px) !important;
+    background: linear-gradient(135deg, rgba(99,102,241,.09), rgba(139,92,246,.10)) !important;
+    border-color: rgba(99,102,241,.42) !important;
+    box-shadow: 0 12px 28px rgba(99,102,241,.16) !important;
+}
+
+.page-back-button:active {
+    transform: translateX(-1px) scale(.98) !important;
+}
+
+[data-theme="dark"] .page-back-button {
+    background: rgba(15, 23, 42, .92) !important;
+    color: #a5b4fc !important;
+    border-color: rgba(129,140,248,.32) !important;
+}
+
+[data-theme="dark"] .page-back-button:hover {
+    background: rgba(99,102,241,.18) !important;
+}
+
+#loading-overlay.spinner-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    z-index: 300000 !important;
+    background: rgba(248,250,252,.70) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+}
+
+#loading-overlay.spinner-overlay .spinner {
+    width: 54px !important;
+    height: 54px !important;
+    margin: 0 !important;
+}
+
+#loading-overlay .loading-message {
+    position: static !important;
+    margin: 0 !important;
+    padding: 9px 15px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.96) !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    font-weight: 750 !important;
+    box-shadow: 0 12px 30px rgba(15,23,42,.12) !important;
+}
+
+[data-theme="dark"] #loading-overlay.spinner-overlay {
+    background: rgba(2,6,23,.72) !important;
+}
+
+[data-theme="dark"] #loading-overlay .loading-message {
+    background: rgba(15,23,42,.96) !important;
+    color: #e5e7eb !important;
+    border-color: rgba(148,163,184,.28) !important;
+}
+
+@media (max-width: 900px) {
+    .page-header-with-back {
+        min-height: 0 !important;
+        padding: 0 !important;
+    }
+
+    .page-header-with-back > .page-back-button {
+        position: static !important;
+        margin-bottom: 14px !important;
+    }
+}
