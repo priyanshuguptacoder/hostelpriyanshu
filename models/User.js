@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+const hashOtp = value => crypto.createHash('sha256').update(String(value)).digest('hex');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Name is required'], trim: true },
@@ -58,16 +61,18 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 userSchema.methods.generateEmailOTP = function() {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.emailVerificationOTP = otp;
-  this.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000;
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  this.emailVerificationOTP = hashOtp(otp);
+  this.emailVerificationOTPExpires = new Date(Date.now() + 10 * 60 * 1000);
   return otp;
 };
 
 userSchema.methods.verifyEmailOTP = function(otp) {
   if (!this.emailVerificationOTP || !this.emailVerificationOTPExpires) return false;
-  if (Date.now() > this.emailVerificationOTPExpires) return false;
-  return this.emailVerificationOTP === otp;
+  if (Date.now() > new Date(this.emailVerificationOTPExpires).getTime()) return false;
+
+  const candidateHash = hashOtp(otp);
+  return this.emailVerificationOTP === candidateHash || this.emailVerificationOTP === String(otp);
 };
 
 userSchema.methods.toJSON = function() {
